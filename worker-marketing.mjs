@@ -1376,7 +1376,7 @@ async function couponCreate(){
     try{ list=await couponList(); } finally { JOB.couponTab=prevTab; JOB.couponAllPages=prevAll; }
     const name=nameApplied || (formDefaults && formDefaults.couponName) || "";
     const faceText=face.toFixed(2)+"元";
-    const row=list.coupons.find(c=>c.text.includes(name)&&c.text.includes(faceText)&&(!goodsIds.length||c.text.includes(goodsIds[0])));
+    const row=list.coupons.find(c=>c.text.includes(name))||list.coupons.find(c=>c.text.includes(faceText)&&(!goodsIds.length||c.text.includes(goodsIds[0])));
     successResult.verified=!!row;
     successResult.verifyRow=row?row.text:null;
     successResult.verifyCount=list.count;
