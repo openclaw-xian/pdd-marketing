@@ -744,7 +744,7 @@ async function couponGoto(type) {
     : t === "follow" || t === "店铺关注券"
       ? "https://mms.pinduoduo.com/tool/coupon/create?chooseType=3"
       : t === "surprise" || t === "惊喜券"
-        ? "https://mms.pinduoduo.com/tool/surprise-coupon"
+        ? "https://mms.pinduoduo.com/tool/surprise-coupon/create"
         : "";
   if (!url) throw new Error("coupon_type_invalid:" + type);
   await page.goto(url, { timeout: 60000 });
@@ -753,16 +753,33 @@ async function couponGoto(type) {
   return url;
 }
 
+async function couponNameInput() {
+  return page.evaluate(() => {
+    const t = (x) => (x ? (x.innerText || x.textContent || "").trim() : "");
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    let i = [...document.querySelectorAll("input")].find(x => vis(x) && (x.placeholder || "").includes("该名称将不对买家展示"));
+    if (!i) {
+      const label = [...document.querySelectorAll("label,div,span")].filter(x => vis(x) && !x.children.length && t(x) === "优惠券名称")[0];
+      if (label) {
+        let n = label;
+        for (let k = 0; k < 7 && n; k++) {
+          const cand = [...n.querySelectorAll("input")].find(x => vis(x) && x.type === "text");
+          if (cand) { i = cand; break; }
+          n = n.parentElement;
+        }
+      }
+    }
+    if (!i) return null;
+    const r = i.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), value: i.value, placeholder: i.placeholder };
+  });
+}
+
 async function couponSetName(name) {
   const value = String(name || "").trim();
   if (!value) return null;
   if (value.length > 20) throw new Error("coupon_name_too_long:" + value.length);
-  const input = await page.evaluate(() => {
-    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && (x.placeholder || "").includes("该名称将不对买家展示"));
-    if (!i) return null;
-    const r = i.getBoundingClientRect();
-    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), value: i.value };
-  });
+  const input = await couponNameInput();
   if (!input) throw new Error("coupon_name_input_missing");
   await page.mouse.click(input.x, input.y);
   await page.waitForTimeout(250);
@@ -770,19 +787,27 @@ async function couponSetName(name) {
   await page.keyboard.type(value);
   await page.keyboard.press("Tab");
   await page.waitForTimeout(500);
-  const after = await page.evaluate(() => {
-    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && (x.placeholder || "").includes("该名称将不对买家展示"));
-    return i ? i.value : null;
-  });
-  if (after !== value) throw new Error("coupon_name_not_applied:" + after);
-  return after;
+  const after = await couponNameInput();
+  if (!after || after.value !== value) throw new Error("coupon_name_not_applied:" + (after ? after.value : null));
+  return after.value;
 }
 
 async function couponFormInfo() {
   return page.evaluate(() => {
     const t = (x) => (x ? (x.innerText || x.textContent || "").replace(/\s+/g, " ").trim() : "");
     const inputByPh = (ph) => [...document.querySelectorAll("input")].find(x => x.offsetParent && (x.placeholder || "").includes(ph));
-    const name = inputByPh("该名称将不对买家展示");
+    let name = inputByPh("该名称将不对买家展示");
+    if (!name) {
+      const label = [...document.querySelectorAll("label,div,span")].filter(x => x.offsetParent && !x.children.length && t(x) === "优惠券名称")[0];
+      if (label) {
+        let n = label;
+        for (let k = 0; k < 7 && n; k++) {
+          const cand = [...n.querySelectorAll("input")].find(x => x.offsetParent && x.type === "text");
+          if (cand) { name = cand; break; }
+          n = n.parentElement;
+        }
+      }
+    }
     const date = inputByPh("开始时间");
     const use = [...document.querySelectorAll("span")].map(t).find(x => /^领取后.*可用$/.test(x)) || "";
     const row = [...document.querySelectorAll("tr")].find(x => /ID:\s*\d+/.test(t(x)));
@@ -949,12 +974,18 @@ async function couponApplyExtras(extraDiscount, surpriseExtraDiscount) {
     { key: "surpriseExtraDiscount", formItemId: "#surpriseCouponDiscountValue", checkId: "#surpriseCouponCheck", desired: surpriseExtraDiscount }
   ];
   const before = [];
-  for (const t of targets) before.push({ key: t.key, ...(await couponExtraState(t.formItemId, t.checkId)) });
+  for (const t of targets) {
+    const s = await couponExtraState(t.formItemId, t.checkId);
+    before.push({ key: t.key, ...(s || { missing: true, checked: false, amount: null }) });
+  }
   for (const t of targets) {
     const desired = t.desired;
     if (desired != null && (!Number.isFinite(desired) || desired < 0)) throw new Error("coupon_extra_amount_invalid:" + t.key);
     let state = await couponExtraState(t.formItemId, t.checkId);
-    if (!state) throw new Error("coupon_extra_section_missing:" + t.key);
+    if (!state) {
+      if (desired != null && desired > 0) throw new Error("coupon_extra_section_missing:" + t.key);
+      continue;
+    }
     const wantOn = desired != null && desired > 0;
     if (wantOn && !state.checked) {
       await page.mouse.click(state.boxC.x, state.boxC.y);
@@ -977,8 +1008,12 @@ async function couponApplyExtras(extraDiscount, surpriseExtraDiscount) {
   }
   await page.waitForTimeout(600);
   const after = [];
-  for (const t of targets) after.push({ key: t.key, desired: t.desired, ...(await couponExtraState(t.formItemId, t.checkId)) });
+  for (const t of targets) {
+    const s = await couponExtraState(t.formItemId, t.checkId);
+    after.push({ key: t.key, desired: t.desired, ...(s || { missing: true, checked: false, amount: null }) });
+  }
   const bad = after.filter(x => {
+    if (x.missing) return x.desired != null && x.desired > 0;
     const wantOn = x.desired != null && x.desired > 0;
     if (wantOn) return !x.checked || String(x.amount) !== String(x.desired);
     return x.checked;
@@ -1084,7 +1119,7 @@ async function couponList(){
   const data=await page.evaluate(()=>{
     const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
     const rows=[...document.querySelectorAll("tr")].filter(x=>x.offsetParent);
-    const coupons=rows.filter(r=>/商品立减券|店铺关注券|惊喜券|场景专属券/.test(t(r))).map(r=>({
+    const coupons=rows.filter(r=>/商品立减券|店铺关注券|关注店铺商品券|关注店铺券|惊喜券|场景专属券/.test(t(r))).map(r=>({
       text:t(r).slice(0,300),
       buttons:[...r.querySelectorAll("button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&["结束","增加发行量","数据"].includes(t(x))).map(x=>t(x))
     }));
@@ -1097,6 +1132,7 @@ async function couponClose(){
   const goodsId=String((JOB.goodsIds||[])[0]||JOB.goodsId||"");
   if(!goodsId)throw new Error("coupon_close_goods_id_missing");
   const type=String(JOB.couponType||"").trim();
+  const typeAliases=type?(type==="店铺关注券"?["店铺关注券","关注店铺商品券","关注店铺券"]:[type]):[];
   const face=JOB.faceAmount!=null&&JOB.faceAmount!==""?Number(JOB.faceAmount):null;
   const cur=await page.url().catch(()=>"");
   if(!String(cur).includes("/tool/coupon?tab=1")){
@@ -1106,13 +1142,23 @@ async function couponClose(){
     await page.waitForTimeout(800);
   }
   await dismissCouponNotices();
+  const closeTab=String(JOB.couponTab||"active");
+  const tabLabel=closeTab==="ended"||closeTab==="已结束"?"已结束":closeTab==="all"||closeTab==="全部"?"全部":closeTab==="pending"||closeTab==="待激活"?"待激活":"生效中";
+  const tabPos=await page.evaluate((label)=>{
+    const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
+    const el=[...document.querySelectorAll("[class*=TAB_capsuleLabel], [role=tab], button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)===label)[0];
+    if(!el)return null;
+    const r=el.getBoundingClientRect();
+    return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+  },tabLabel);
+  if(tabPos){ await page.mouse.click(tabPos.x,tabPos.y); await page.waitForTimeout(2000); }
   let hit=null;
   for(let i=0;i<12;i++){
-    hit=await page.evaluate(({id,type,face})=>{
+    hit=await page.evaluate(({id,typeAliases,face})=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
       const rows=[...document.querySelectorAll("tr")].filter(r=>r.offsetParent&&t(r).includes(id)).filter(r=>{
         const s=t(r);
-        if(type&&!s.includes(type))return false;
+        if(typeAliases.length&&!typeAliases.some(a=>s.includes(a)))return false;
         if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
         return true;
       });
@@ -1121,7 +1167,7 @@ async function couponClose(){
       if(!b)return {count:1,endButton:false};
       const r=b.getBoundingClientRect();
       return {count:1,endButton:true,x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
-    },{id:goodsId,type,face});
+    },{id:goodsId,typeAliases,face});
     if(hit && hit.count===1 && hit.endButton)break;
     if(hit && hit.count>1)throw new Error("coupon_close_ambiguous:"+hit.count);
     await page.waitForTimeout(1000);
@@ -1130,7 +1176,7 @@ async function couponClose(){
   if(!hit.endButton)throw new Error("coupon_end_button_missing:"+goodsId);
   await page.mouse.click(hit.x,hit.y);
   await page.waitForTimeout(1200);
-  for(const label of ["确认结束","直接结束"]){
+  const clickExact=async(label)=>{
     const ok=await page.evaluate((label)=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
       const b=[...document.querySelectorAll("button,div,span")].filter(x=>x.offsetParent&&t(x)===label).pop();
@@ -1138,8 +1184,13 @@ async function couponClose(){
       const r=b.getBoundingClientRect();
       return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
     },label);
-    if(ok){ await page.mouse.click(ok.x,ok.y); await page.waitForTimeout(1200); }
-  }
+    if(!ok)return false;
+    await page.mouse.click(ok.x,ok.y);
+    await page.waitForTimeout(1200);
+    return true;
+  };
+  const first=await clickExact("确认结束")||await clickExact("确认");
+  if(first) await clickExact("直接结束");
   await page.waitForTimeout(1000);
   const text=(await page.evaluate(()=>document.body.innerText||"")).slice(-800);
   const closed=/成功停止该优惠券发行/.test(text);

@@ -492,7 +492,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 出现额外设置：立即结束并重做。
 
-### 代码模式（0.9.4）
+### 代码模式（0.9.5）
 
 - `coupon-create` 默认只预览；**必须显式 `confirmCreate:true` 才真正创建**
 - `dryRun:true` 返回 `formDefaults` / `validRange`，用于创建前和用户对齐
@@ -500,6 +500,8 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - `extraDiscount` / `surpriseExtraDiscount` 不传 = 关闭；1～100 = 开启并写入金额
 - `coupon-list` 支持 `couponTab`（`active` / `ended` / `all`），读取前自动关闭「新消息」弹窗
 - `coupon-close` 按 goodsId + 券类型 + 面额精确匹配；多张匹配直接报错，不盲关
+- 店铺关注券：类型别名 `关注店铺商品券` / `关注店铺券` 也归入 `店铺关注券`；使用时间默认 30 天（7～90）
+- 惊喜券：创建入口是 `/tool/surprise-coupon/create`（`/tool/surprise-coupon` 是列表页）；面额区间按商品（测试商品 9～13 元）；每人限领默认 3 张；结束是单步「确认」
 - `perPersonLimit` 尚未实现；商品立减券页面实测默认每人限领 99 张
 - 只读模式默认 `keepOpen`：结束后 handOff 保留页面，下次运行复用同一 `pdd-marketing-<店铺>` 空间，不再每次新建；`keepOpen:false` 强制关闭
 - 完整配置见 [references/coupons.md](references/coupons.md) 第 15 节
