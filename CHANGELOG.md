@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.8 — 2026-11-26
+
+- `coupon-close` 增加 `confirmClose:true` 硬门；不传只返回 `preview`（含将结束的 rowText），不点结束。
+- `coupon-list` 增加 `couponAllPages:true`，逐页读取；实测「全部」页签 45 张 / 5 页。
+- `coupon-close` 自动逐页搜索目标券（1～20 页），不再只读当前页。
+- 实现 `perPersonLimit`：惊喜券支持 1/2/3 张并回读校验；其他券种页面没有该字段时明确报 `coupon_per_person_not_supported`。
+- `couponFormInfo` 增加 `perPersonDefault`。
+- 实测：惊喜券 9 元 / 100 张 / 每人限领 1 张创建成功；`confirmClose:true` 结束成功。
+
 ## 0.9.7 — 2026-11-26
 
 - 新增 `references/implementation.md`：文件结构、运行模型、空间/页面复用、`waitForPage`、三种券创建/列表/结束、`coupon-audit`、错误码/退出码、维护指南。

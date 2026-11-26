@@ -60,7 +60,7 @@ node run.mjs <config.json>
 - `waitForPage(fn, timeoutMs=15000, intervalMs=400)`：轮询到条件成立就继续，替代固定 5～6 秒等待。
 - `couponGoto()`：`goto` 后轮询「选择商品」或「创建」按钮出现。
 - `couponList()` / `couponClose()`：`goto` 后轮询表格行 > 1；列表读取前再轮询行数稳定（2 次相同）。
-- `couponClose()`：找到目标行前最多 12 次 × 1 秒轮询，避免刚创建/刚结束时列表未渲染。
+- `couponClose()`：按页 1～20 搜索，每页最多 3 次 × 0.8 秒轮询，避免只读当前页或列表未渲染。
 - 创建成功后轮询 10 次 × 1 秒确认「创建成功」，没确认返回 `failed`。
 
 ## 5. 优惠券创建
@@ -102,7 +102,7 @@ node run.mjs <config.json>
   - 用真实鼠标点击 + `Ctrl+A` + 键盘输入（原生 setter 会被 React 重置）。
   - 回读值必须等于 face/issue，否则 `coupon_fields_not_applied`。
   - `券后价` 为 `--` 时抛 `coupon_face_out_of_range`，带 `suggestedRange`。
-  - `perPersonLimit` 尚未实现，传了报 `coupon_per_person_not_implemented`。
+  - `perPersonLimit`：惊喜券支持 1/2/3 张（`couponSetPerPersonLimit`），其他券种页面没有该字段时报 `coupon_per_person_not_supported`。
 
 ### 5.5 额外优惠
 
@@ -146,7 +146,8 @@ node run.mjs <config.json>
 - `couponTab`：`active` / `ended` / `all`（也接受中文）。
 - 轮询行数稳定后读取。
 - 类型过滤包含：`商品立减券`、`店铺关注券`、`关注店铺商品券`、`关注店铺券`、`惊喜券`、`场景专属券`。
-- 返回 `count`、`coupons`、`tab`、`notices`。
+- `couponAllPages:true` 时逐页读取（1～20 页），返回 `pages`；实测「全部」45 张 / 5 页。
+- 返回 `count`、`coupons`、`pages`、`tab`、`notices`。
 
 ## 7. 优惠券结束
 
@@ -154,13 +155,14 @@ node run.mjs <config.json>
 
 1. 默认切到「生效中」页签（`couponTab` 可改）。
 2. 关闭「新消息」弹窗。
-3. 按 `goodsId` + 类型别名 + 面额（`xx.00元`）精确匹配；0 行报 `coupon_row_not_found`，多行报 `coupon_close_ambiguous`。
-4. 最多 12 次 × 1 秒轮询目标行。
-5. 点行内「结束」。
-6. 兼容两种确认：
+3. **必须显式 `confirmClose:true` 才点结束**；否则返回 `preview`（含 rowText），不点结束。
+4. 按 `goodsId` + 类型别名 + 面额（`xx.00元`）精确匹配；0 行报 `coupon_row_not_found`，多行报 `coupon_close_ambiguous`。
+5. 自动逐页搜索目标券（1～20 页），每页最多 3 次 × 0.8 秒轮询。
+6. 点行内「结束」。
+7. 兼容两种确认：
    - 单步（惊喜券）：`确认`
    - 两步（商品立减券/店铺关注券）：`确认结束` → `直接结束`
-7. 校验「成功停止该优惠券发行」，否则 `coupon_close_not_confirmed`。
+8. 校验「成功停止该优惠券发行」，否则 `coupon_close_not_confirmed`。
 
 ## 8. 错误码 / 退出码
 
@@ -179,7 +181,7 @@ node run.mjs <config.json>
 | `coupon_close_not_confirmed` | 没看到结束成功 | 5 |
 | `coupon_extra_section_missing:<key>` | 想开额外优惠但页面没有区块 | 5 |
 | `coupon_name_too_long:<n>` | 券名超过 20 字 | 5 |
-| `coupon_per_person_not_implemented` | 每人限领未实现 | 5 |
+| `coupon_per_person_invalid` / `not_supported` / `option_missing` / `not_applied` | 每人限领设置失败 | 5 |
 
 ## 9. 维护指南
 
