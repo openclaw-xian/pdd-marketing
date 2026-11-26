@@ -492,6 +492,17 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 出现额外设置：立即结束并重做。
 
+### 代码模式（0.9.3）
+
+- `coupon-create` 默认只预览；**必须显式 `confirmCreate:true` 才真正创建**
+- `dryRun:true` 返回 `formDefaults` / `validRange`，用于创建前和用户对齐
+- 面额不在平台允许区间时返回 `status:"needs_user_input"`，带 `suggestedRange`，`run.mjs` 退出码 3，不点创建
+- `extraDiscount` / `surpriseExtraDiscount` 不传 = 关闭；1～100 = 开启并写入金额
+- `coupon-list` 支持 `couponTab`（`active` / `ended` / `all`），读取前自动关闭「新消息」弹窗
+- `coupon-close` 按 goodsId + 券类型 + 面额精确匹配；多张匹配直接报错，不盲关
+- `perPersonLimit` 尚未实现；商品立减券页面实测默认每人限领 99 张
+- 完整配置见 [references/coupons.md](references/coupons.md) 第 15 节
+
 ## 优惠券参考
 
 优惠券创建、选品、额外优惠、结束/删除、惊喜券入口的完整步骤和踩坑，见 [references/coupons.md](references/coupons.md)。
@@ -515,12 +526,16 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - 价格暂时失效原因回读
 - `platform-inventory`：50 商品摘要与状态合并；实测当前活动可报名商品 41 个，全部标记“可报名”
 - 活动列表：可见主列表 75 条/4 页已跑通；右侧隐藏抽屉 103 条/6 页不作为可见列表
+- 优惠券：商品立减券 14 元 / 100 张创建成功，额外优惠与惊喜券额外优惠均关闭，成功页无额外设置；随后结束，已结束页签回读状态「已结束」
+- 面额非法（5 元）返回 `needs_user_input`，建议区间 14～25
+- 优惠券列表/结束前会关闭右上角「新消息」弹窗（`ImportantList_close__d0eKb`）
 
 尚未交付：
-- 6 种优惠券完整创建/回读
+- 店铺关注券/惊喜券的 `coupon-create` 实测（代码同一套，页面字段不同）
 - 店铺活动创建
 - 平台活动列表 102 条全量分页
 - 报名提交门在 skill 内的自动执行封装
+- `perPersonLimit` 代码封装（商品立减券页面实测默认 99 张）
 
 ## 红线
 

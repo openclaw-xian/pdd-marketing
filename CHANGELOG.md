@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.3 — 2026-11-26
+
+- 优惠券字段改为真实鼠标点击 + 键盘输入，并回读校验，修复 React 重置推荐值导致字段未生效的问题。
+- `coupon-create` 增加 `confirmCreate:true` 硬门；未显式确认只做预览，不点创建。
+- 增加 `dryRun:true` 预览，返回 `formDefaults` / `validRange`，用于创建前和用户对齐。
+- 面额不在平台允许区间时返回 `needs_user_input` + `suggestedRange`，退出码 3，不点创建。
+- 额外优惠改为按 `#fullSiteMarketingCheck` / `#surpriseCouponCheck` 精确开关并复查；支持 `extraDiscount` / `surpriseExtraDiscount`（不传=关闭，1～100=开启）。
+- 支持 `couponName` 自定义内部券名。
+- `coupon-list` 支持 `couponTab`（active/ended/all），读取前关闭「新消息」弹窗，轮询等待表格稳定。
+- `coupon-close` 按 goodsId + 券类型 + 面额精确匹配，多张匹配报 `coupon_close_ambiguous`；读取前关闭「新消息」弹窗。
+- 实测：商品立减券 14 元/100 张创建成功，两个额外优惠均关闭；结束成功并在「已结束」页签回读。
+- 已知：`perPersonLimit` 尚未实现；商品立减券页面默认每人限领 99 张。
+
 ## 0.9.2 — 2026-11-25
 
 首个公开版本。

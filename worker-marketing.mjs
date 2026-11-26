@@ -714,6 +714,29 @@ async function requireActivityPreflight() {
   if (left !== 0) throw new Error("activity_preflight_clear_failed:" + left);
   return true;
 }
+async function dismissCouponNotices() {
+  const targets = await page.evaluate(() => {
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const out = [];
+    const sels = [".ImportantList_close__d0eKb", "[class*=ImportantList_close]", ".AllMsg_close__2whBQ", "#msg_box_modal [class*=close]"];
+    for (const sel of sels) {
+      for (const el of [...document.querySelectorAll(sel)].filter(vis)) {
+        const r = el.getBoundingClientRect();
+        out.push({ sel, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) });
+      }
+    }
+    return out;
+  });
+  const clicked = [];
+  for (const t of targets) {
+    await page.mouse.click(t.x, t.y);
+    await page.waitForTimeout(400);
+    clicked.push(t.sel);
+  }
+  if (clicked.length) await page.waitForTimeout(600);
+  return clicked;
+}
+
 async function couponGoto(type) {
   const t = String(type || "").toLowerCase();
   const url = t === "product" || t === "商品立减券"
@@ -726,7 +749,67 @@ async function couponGoto(type) {
   if (!url) throw new Error("coupon_type_invalid:" + type);
   await page.goto(url, { timeout: 60000 });
   await page.waitForTimeout(6000);
+  await dismissCouponNotices();
   return url;
+}
+
+async function couponSetName(name) {
+  const value = String(name || "").trim();
+  if (!value) return null;
+  if (value.length > 20) throw new Error("coupon_name_too_long:" + value.length);
+  const input = await page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && (x.placeholder || "").includes("该名称将不对买家展示"));
+    if (!i) return null;
+    const r = i.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), value: i.value };
+  });
+  if (!input) throw new Error("coupon_name_input_missing");
+  await page.mouse.click(input.x, input.y);
+  await page.waitForTimeout(250);
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(value);
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && (x.placeholder || "").includes("该名称将不对买家展示"));
+    return i ? i.value : null;
+  });
+  if (after !== value) throw new Error("coupon_name_not_applied:" + after);
+  return after;
+}
+
+async function couponFormInfo() {
+  return page.evaluate(() => {
+    const t = (x) => (x ? (x.innerText || x.textContent || "").replace(/\s+/g, " ").trim() : "");
+    const inputByPh = (ph) => [...document.querySelectorAll("input")].find(x => x.offsetParent && (x.placeholder || "").includes(ph));
+    const name = inputByPh("该名称将不对买家展示");
+    const date = inputByPh("开始时间");
+    const use = [...document.querySelectorAll("span")].map(t).find(x => /^领取后.*可用$/.test(x)) || "";
+    const row = [...document.querySelectorAll("tr")].find(x => /ID:\s*\d+/.test(t(x)));
+    const cells = row ? [...row.querySelectorAll("td")].map(t) : [];
+    const ins = row ? [...row.querySelectorAll("input")].filter(x => x.offsetParent && x.type !== "checkbox") : [];
+    const extra = document.querySelector("#fullSiteMarketingDiscountValue");
+    const surprise = document.querySelector("#surpriseCouponDiscountValue");
+    const extraAmount = extra ? [...extra.querySelectorAll("input[type=text]")].find(x => x.offsetParent) : null;
+    const surpriseAmount = surprise ? [...surprise.querySelectorAll("input[type=text]")].find(x => x.offsetParent) : null;
+    const extraBox = document.querySelector("#fullSiteMarketingCheck input[type=checkbox]");
+    const surpriseBox = document.querySelector("#surpriseCouponCheck input[type=checkbox]");
+    const body = document.body.innerText || "";
+    const range = body.match(/建议优惠区间参考[：:]\s*([0-9.]+～[0-9.]+)/);
+    const phRange = ins[0] ? (ins[0].placeholder || "").match(/([0-9.]+～[0-9.]+)/) : null;
+    return {
+      couponName: name ? name.value : null,
+      claimRange: date ? date.value : null,
+      useTime: use,
+      productRow: cells.slice(0, 4),
+      faceDefault: ins[0] ? ins[0].value : null,
+      issueDefault: ins[1] ? ins[1].value : null,
+      facePlaceholder: ins[0] ? ins[0].placeholder : null,
+      extraDiscount: { checked: extraBox ? extraBox.checked : null, amount: extraAmount ? extraAmount.value : null },
+      surpriseExtraDiscount: { checked: surpriseBox ? surpriseBox.checked : null, amount: surpriseAmount ? surpriseAmount.value : null },
+      suggestedRange: range ? range[1] : (phRange ? phRange[1] : "")
+    };
+  });
 }
 
 async function couponSelectProduct(goodsId) {
@@ -785,44 +868,123 @@ async function couponSelectProduct(goodsId) {
   return true;
 }
 
-async function couponSetFields(goodsId, face, issue, perPerson) {
-  const vals=await page.evaluate(({goodsId,face,issue})=>{
-    const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
-    const tr=[...document.querySelectorAll("tr")].find(x=>(x.innerText||"").includes(goodsId));
-    if(!tr)return {ok:false,reason:"row_missing"};
-    const ins=[...tr.querySelectorAll("input")].filter(x=>x.offsetParent && x.type!=="checkbox");
-    const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set;
-    if(ins[0]){setter.call(ins[0],String(face));ins[0].dispatchEvent(new Event("input",{bubbles:true}));ins[0].dispatchEvent(new Event("change",{bubbles:true}));ins[0].blur();}
-    if(ins[1]){setter.call(ins[1],String(issue));ins[1].dispatchEvent(new Event("input",{bubbles:true}));ins[1].dispatchEvent(new Event("change",{bubbles:true}));ins[1].blur();}
-    return {ok:true,values:ins.map(x=>x.value)};
-  },{goodsId,face,issue});
-  if(!vals.ok)throw new Error("coupon_row_missing:"+goodsId);
-  if(perPerson!=null){
-    const p=await page.evaluate((perPerson)=>{
-      const i=[...document.querySelectorAll("input")].find(x=>x.offsetParent&&(x.placeholder||"").includes("每人限领"));
-      if(!i)return false;
-      const r=i.getBoundingClientRect();
-      i.click();
-      return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
-    }, perPerson);
-    if(p){ await page.mouse.click(p.x,p.y); await page.waitForTimeout(500); }
-  }
-  return vals;
+async function couponRowInfo(goodsId) {
+  return page.evaluate((id) => {
+    const t = (x) => (x ? (x.innerText || x.textContent || "").replace(/\s+/g, " ").trim() : "");
+    const tr = [...document.querySelectorAll("tr")].find(x => new RegExp("ID:\\s*" + id).test(t(x)));
+    if (!tr) return { ok: false, reason: "row_missing" };
+    const ins = [...tr.querySelectorAll("input")].filter(x => x.offsetParent && x.type !== "checkbox");
+    const cells = [...tr.querySelectorAll("td")].map(x => t(x));
+    return {
+      ok: true,
+      values: ins.map(x => x.value),
+      coords: ins.map(x => { const r = x.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }; }),
+      cells,
+      rowText: t(tr).slice(0, 500)
+    };
+  }, goodsId);
 }
 
-async function couponUncheckExtras() {
-  const out=await page.evaluate(()=>{
-    const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
-    const labels=[...document.querySelectorAll("label")].filter(x=>x.offsetParent&&/额外优惠|全站营销|惊喜券额外优惠/.test(t(x)));
-    const changed=[];
-    for(const l of labels){
-      const i=l.querySelector("input[type=checkbox]");
-      if(i&&i.checked){ i.click(); changed.push(t(l).slice(0,80)); }
-    }
-    return {labels:labels.map(l=>t(l).slice(0,80)),changed};
-  });
+async function couponSetFields(goodsId, face, issue, perPerson) {
+  if (perPerson != null) throw new Error("coupon_per_person_not_implemented");
+  let info = await couponRowInfo(goodsId);
+  if (!info.ok) throw new Error("coupon_row_missing:" + goodsId);
+  if (!info.coords || info.coords.length < 2) throw new Error("coupon_row_inputs_missing:" + goodsId);
+  const faceC = info.coords[0];
+  const issueC = info.coords[1];
+  await page.mouse.click(faceC.x, faceC.y);
+  await page.waitForTimeout(250);
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(String(face));
+  await page.keyboard.press("Tab");
   await page.waitForTimeout(600);
-  return out;
+  await page.mouse.click(issueC.x, issueC.y);
+  await page.waitForTimeout(250);
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(String(issue));
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(1000);
+  info = await couponRowInfo(goodsId);
+  if (!info.ok) throw new Error("coupon_row_missing_after_fill:" + goodsId);
+  if (String(info.values[0]) !== String(face) || String(info.values[1]) !== String(issue)) {
+    throw new Error("coupon_fields_not_applied:" + JSON.stringify(info.values));
+  }
+  const couponPrice = info.cells[3] || "";
+  if (!couponPrice || couponPrice === "--") {
+    const suggestedRange = await page.evaluate(() => {
+      const m = (document.body.innerText || "").match(/建议优惠区间参考[：:]\s*([0-9.]+～[0-9.]+)/);
+      return m ? m[1] : "";
+    });
+    const err = new Error("coupon_face_out_of_range");
+    err.code = "coupon_face_out_of_range";
+    err.details = { goodsId, face, issue, suggestedRange };
+    throw err;
+  }
+  return { values: info.values, couponPrice, rowText: info.rowText };
+}
+
+async function couponExtraState(formItemId, checkId) {
+  return page.evaluate(({ formItemId, checkId }) => {
+    const t = (x) => (x ? (x.innerText || x.textContent || "").replace(/\s+/g, " ").trim() : "");
+    const item = document.querySelector(formItemId);
+    if (!item) return null;
+    const box = document.querySelector(checkId);
+    const i = box ? box.querySelector("input[type=checkbox]") : null;
+    const amount = [...item.querySelectorAll("input[type=text]")].find(x => x.offsetParent);
+    const br = i ? i.getBoundingClientRect() : null;
+    const ar = amount ? amount.getBoundingClientRect() : null;
+    return {
+      checked: i ? i.checked : null,
+      amount: amount ? amount.value : null,
+      label: t(item).slice(0, 160),
+      boxC: br ? { x: Math.round(br.x + br.width / 2), y: Math.round(br.y + br.height / 2) } : null,
+      amountC: ar ? { x: Math.round(ar.x + ar.width / 2), y: Math.round(ar.y + ar.height / 2) } : null
+    };
+  }, { formItemId, checkId });
+}
+
+async function couponApplyExtras(extraDiscount, surpriseExtraDiscount) {
+  const targets = [
+    { key: "extraDiscount", formItemId: "#fullSiteMarketingDiscountValue", checkId: "#fullSiteMarketingCheck", desired: extraDiscount },
+    { key: "surpriseExtraDiscount", formItemId: "#surpriseCouponDiscountValue", checkId: "#surpriseCouponCheck", desired: surpriseExtraDiscount }
+  ];
+  const before = [];
+  for (const t of targets) before.push({ key: t.key, ...(await couponExtraState(t.formItemId, t.checkId)) });
+  for (const t of targets) {
+    const desired = t.desired;
+    if (desired != null && (!Number.isFinite(desired) || desired < 0)) throw new Error("coupon_extra_amount_invalid:" + t.key);
+    let state = await couponExtraState(t.formItemId, t.checkId);
+    if (!state) throw new Error("coupon_extra_section_missing:" + t.key);
+    const wantOn = desired != null && desired > 0;
+    if (wantOn && !state.checked) {
+      await page.mouse.click(state.boxC.x, state.boxC.y);
+      await page.waitForTimeout(500);
+    }
+    if (!wantOn && state.checked) {
+      await page.mouse.click(state.boxC.x, state.boxC.y);
+      await page.waitForTimeout(500);
+    }
+    if (wantOn) {
+      if (desired < 1 || desired > 100) throw new Error("coupon_extra_amount_out_of_range:" + t.key + ":" + desired);
+      state = await couponExtraState(t.formItemId, t.checkId);
+      await page.mouse.click(state.amountC.x, state.amountC.y);
+      await page.waitForTimeout(250);
+      await page.keyboard.press("Control+A");
+      await page.keyboard.type(String(desired));
+      await page.keyboard.press("Tab");
+      await page.waitForTimeout(700);
+    }
+  }
+  await page.waitForTimeout(600);
+  const after = [];
+  for (const t of targets) after.push({ key: t.key, desired: t.desired, ...(await couponExtraState(t.formItemId, t.checkId)) });
+  const bad = after.filter(x => {
+    const wantOn = x.desired != null && x.desired > 0;
+    if (wantOn) return !x.checked || String(x.amount) !== String(x.desired);
+    return x.checked;
+  });
+  if (bad.length) throw new Error("coupon_extras_not_applied:" + JSON.stringify(bad.map(x => ({ key: x.key, checked: x.checked, amount: x.amount, desired: x.desired }))));
+  return { before, after };
 }
 
 async function couponCreate(){
@@ -834,22 +996,32 @@ async function couponCreate(){
   if(!Number.isFinite(face)||face<=0)throw new Error("coupon_face_missing");
   if(!Number.isFinite(issue)||issue<=0)throw new Error("coupon_issue_missing");
   await couponGoto(type);
+  const nameApplied=await couponSetName(JOB.couponName);
+  const fields=[];
+  let formDefaults=null;
   for(const id of goodsIds){
     await couponSelectProduct(id);
-    await couponSetFields(id, face, issue, JOB.perPersonLimit);
+    if(!formDefaults) formDefaults=await couponFormInfo();
+    try {
+      fields.push({ goodsId: id, ...(await couponSetFields(id, face, issue, JOB.perPersonLimit)) });
+    } catch (e) {
+      if (e && e.code === "coupon_face_out_of_range") {
+        return {
+          status: "needs_user_input",
+          error: e.code,
+          message: `券面额 ${face} 元不符合平台要求，建议区间 ${e.details.suggestedRange || "未知"}，请确认面额`,
+          type, goodsIds, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, formDefaults, validRange: e.details.suggestedRange || "", ...e.details
+        };
+      }
+      throw e;
+    }
   }
-  const extras=await couponUncheckExtras();
+  const extras=await couponApplyExtras(JOB.extraDiscount, JOB.surpriseExtraDiscount);
   const cnt=await page.evaluate(()=>{
     const m=(document.body.innerText||"").match(/已选\s*(\d+)\s*个商品/);
     return m?Number(m[1]):null;
   });
   if(cnt!=null && cnt!==goodsIds.length)throw new Error("coupon_selected_count_mismatch:"+cnt);
-  const safe=await page.evaluate(()=>{
-    const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
-    const labels=[...document.querySelectorAll("label")].filter(x=>x.offsetParent&&/额外优惠|全站营销|惊喜券额外优惠/.test(t(x)));
-    return labels.filter(l=>{const i=l.querySelector("input[type=checkbox]");return !!(i&&i.checked);}).map(l=>t(l).slice(0,80));
-  });
-  if(safe.length)throw new Error("coupon_extras_not_cleared:"+safe.join("|"));
   const btn=await page.evaluate(()=>{
     const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
     const b=[...document.querySelectorAll("button")].filter(x=>x.offsetParent&&t(x)==="创建").pop();
@@ -859,20 +1031,52 @@ async function couponCreate(){
     return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),disabled:false};
   });
   if(!btn||btn.disabled)throw new Error("coupon_create_button_disabled");
+  if(JOB.dryRun===true || JOB.confirmCreate!==true){
+    return {status:"preview", type, goodsIds, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, formDefaults, validRange: formDefaults?formDefaults.suggestedRange:"", extras, fields, createButton:{enabled:!btn.disabled}, note:JOB.dryRun===true?"dryRun: 未点击创建":"confirmCreate!=true: 未点击创建（需显式 confirmCreate:true）"};
+  }
   await page.mouse.click(btn.x,btn.y);
-  await page.waitForTimeout(3000);
-  const result=await page.evaluate(()=>({
-    text:(document.body.innerText||"").slice(-1200),
-    created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),
-    syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")
-  }));
-  return {status:"done", type, goodsIds, face, issue, extras, success:result.created, extra_setting:result.syncTool, text:result.text};
+  let result=null;
+  for(let i=0;i<10;i++){
+    await page.waitForTimeout(1000);
+    result=await page.evaluate(()=>({
+      text:(document.body.innerText||"").slice(-1500),
+      created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),
+      syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")
+    }));
+    if(result.created)break;
+  }
+  if(!result||!result.created){
+    return {status:"failed", error:"coupon_create_not_confirmed", type, goodsIds, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, formDefaults, extras, fields, text:result?result.text:""};
+  }
+  return {status:"done", type, goodsIds, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, text:result.text};
 }
 
 async function couponList(){
   await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
   await page.waitForTimeout(5000);
-  return page.evaluate(()=>{
+  const notices=await dismissCouponNotices();
+  const tab=String(JOB.couponTab||"").trim();
+  if(tab){
+    const label=tab==="ended"||tab==="已结束"?"已结束":tab==="active"||tab==="生效中"?"生效中":tab==="all"||tab==="全部"?"全部":"";
+    if(label){
+      const pos=await page.evaluate((label)=>{
+        const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
+        const el=[...document.querySelectorAll("[class*=TAB_capsuleLabel], [role=tab], button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)===label)[0];
+        if(!el)return null;
+        const r=el.getBoundingClientRect();
+        return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+      },label);
+      if(pos){ await page.mouse.click(pos.x,pos.y); await page.waitForTimeout(2000); }
+    }
+  }
+  let last=-1,stable=0;
+  for(let i=0;i<10;i++){
+    await page.waitForTimeout(800);
+    const n=await page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length);
+    if(n===last)stable++; else { stable=0; last=n; }
+    if(stable>=2&&n>1)break;
+  }
+  const data=await page.evaluate(()=>{
     const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
     const rows=[...document.querySelectorAll("tr")].filter(x=>x.offsetParent);
     const coupons=rows.filter(r=>/商品立减券|店铺关注券|惊喜券|场景专属券/.test(t(r))).map(r=>({
@@ -881,38 +1085,50 @@ async function couponList(){
     }));
     return {count:coupons.length,coupons};
   });
+  return {...data,tab:tab||"current",notices};
 }
 
 async function couponClose(){
   const goodsId=String((JOB.goodsIds||[])[0]||JOB.goodsId||"");
   if(!goodsId)throw new Error("coupon_close_goods_id_missing");
+  const type=String(JOB.couponType||"").trim();
+  const face=JOB.faceAmount!=null&&JOB.faceAmount!==""?Number(JOB.faceAmount):null;
   await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
   await page.waitForTimeout(5000);
-  const hit=await page.evaluate((id)=>{
+  await dismissCouponNotices();
+  const hit=await page.evaluate(({id,type,face})=>{
     const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
-    const row=[...document.querySelectorAll("tr")].find(r=>t(r).includes(id));
-    if(!row)return null;
-    const b=[...row.querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
-    if(!b)return null;
-    b.click();
-    return true;
-  },goodsId);
-  if(!hit)throw new Error("coupon_row_or_end_missing:"+goodsId);
+    const rows=[...document.querySelectorAll("tr")].filter(r=>r.offsetParent&&t(r).includes(id)).filter(r=>{
+      const s=t(r);
+      if(type&&!s.includes(type))return false;
+      if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
+      return true;
+    });
+    if(rows.length!==1)return {count:rows.length};
+    const b=[...rows[0].querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
+    if(!b)return {count:1,endButton:false};
+    const r=b.getBoundingClientRect();
+    return {count:1,endButton:true,x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+  },{id:goodsId,type,face});
+  if(hit.count===0)throw new Error("coupon_row_not_found:"+goodsId+(type?":"+type:"")+(face!=null?":"+face:""));
+  if(hit.count>1)throw new Error("coupon_close_ambiguous:"+hit.count);
+  if(!hit.endButton)throw new Error("coupon_end_button_missing:"+goodsId);
+  await page.mouse.click(hit.x,hit.y);
   await page.waitForTimeout(1200);
   for(const label of ["确认结束","直接结束"]){
     const ok=await page.evaluate((label)=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
       const b=[...document.querySelectorAll("button,div,span")].filter(x=>x.offsetParent&&t(x)===label).pop();
-      if(!b)return false;
-      b.click();
-      return true;
+      if(!b)return null;
+      const r=b.getBoundingClientRect();
+      return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
     },label);
-    if(!ok)throw new Error("coupon_close_dialog_missing:"+label);
-    await page.waitForTimeout(1200);
+    if(ok){ await page.mouse.click(ok.x,ok.y); await page.waitForTimeout(1200); }
   }
   await page.waitForTimeout(1000);
-  const text=(await page.evaluate(()=>document.body.innerText||"")).slice(-500);
-  return {status:"done", goodsId, closed:/成功停止该优惠券发行/.test(text), text};
+  const text=(await page.evaluate(()=>document.body.innerText||"")).slice(-800);
+  const closed=/成功停止该优惠券发行/.test(text);
+  return {status:closed?"done":"failed", error:closed?undefined:"coupon_close_not_confirmed", goodsId, couponType:type||null, face, closed, text};
 }
 
 async function main() {

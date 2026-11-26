@@ -150,6 +150,7 @@
 
 结束流程：
 
+0. 先关掉右上角「新消息」弹窗（`ImportantList_close__d0eKb`）；不关的话点击会落到弹窗上，弹出「请选择反馈内容」，那不是优惠券结束流程
 1. 行内点「结束」
 2. 弹窗“确认要结束发券吗？”
 3. 点「确认结束」
@@ -243,18 +244,62 @@
 
 禁止点「暂时结束并到期恢复」。
 
-## 15. 待封装的代码模式
+## 15. 代码模式（0.9.3）
 
-当前 run.mjs 只有 coupon-types，缺少：
+`run.mjs` 已封装：
 
-- coupon-create
-- coupon-product-select
-- coupon-list
-- coupon-close
+- `coupon-create`
+- `coupon-list`
+- `coupon-close`
 
-待补：
-- 创建前额外优惠硬门
-- 选品分页/精确行校验
-- 创建后管理列表回读
-- 重复券检查
-- 结束券两段确认自动化
+### coupon-create
+
+配置字段：
+
+```json
+{
+  "mode": "coupon-create",
+  "couponType": "商品立减券",
+  "goodsIds": ["<商品ID>"],
+  "faceAmount": 14,
+  "issueCount": 100,
+  "couponName": "<内部券名>",
+  "extraDiscount": null,
+  "surpriseExtraDiscount": null,
+  "dryRun": true,
+  "confirmCreate": false
+}
+```
+
+- 不传 `extraDiscount` / `surpriseExtraDiscount` = 两个额外优惠都关闭
+- 传 1～100 = 开启并写入该金额
+- `dryRun:true` = 只预览，不点创建
+- **必须显式 `confirmCreate:true` 才会真正创建**；否则即使 `dryRun:false` 也只预览
+- 面额不在平台允许区间时返回 `status:"needs_user_input"`，带 `suggestedRange`，`run.mjs` 退出码 3，不点创建
+- 创建后轮询「创建成功」，没确认返回 `failed`，不再假报 done
+- 实测某商品：合法面额 **14～25 元**；13、26、30 都是 `券后价 --`
+- 商品立减券页面未提供「每人限领」输入，实测默认 **99 张**；`perPersonLimit` 代码尚未实现，传了会明确报错
+
+### coupon-list
+
+- 支持 `couponTab`：`active` / `ended` / `all`（也接受中文「生效中 / 已结束 / 全部」）
+- 读取前自动关闭右上角「新消息」弹窗
+- 轮询等待表格行稳定，避免刚创建/刚结束时读到旧数据
+- 返回 `count`、`coupons`、`tab`、`notices`
+
+### coupon-close
+
+- 必填 `goodsIds`（或 `goodsId`）
+- 建议同时给 `couponType` + `faceAmount` 精确匹配；同一商品多张券时不会盲关第一张
+- 匹配到多张返回 `coupon_close_ambiguous`
+- 读取前自动关闭「新消息」弹窗；否则点击会落到弹窗，弹「请选择反馈内容」
+- 两段确认：`确认结束` → `直接结束` → 校验「成功停止该优惠券发行」
+
+### 创建前协作顺序
+
+1. `coupon-create` + `dryRun:true`：读默认值、合法区间、额外优惠默认值
+2. 把 `formDefaults` / `validRange` 汇报给用户，确认面额、张数、券名、额外优惠
+3. 再用用户参数跑一次 `dryRun:true`，确认字段回读、券后价、额外优惠状态、按钮可用
+4. 用户确认后 `confirmCreate:true` 正式创建
+5. `coupon-list` 回读（可用 `couponTab` 查已结束）
+6. `coupon-close` 精确结束
