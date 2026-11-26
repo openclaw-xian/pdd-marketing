@@ -970,6 +970,49 @@ async function couponSetClaimDays(days) {
   return { value, start: startStr, end: endStr };
 }
 
+async function couponSetStoreWideFields(face, issue) {
+  const setField = async (label, value) => {
+    const pos = await page.evaluate((label) => {
+      const t = (x) => (x ? (x.innerText || x.textContent || "").trim() : "");
+      const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      const lab = [...document.querySelectorAll("label,div,span")].filter(x => vis(x) && !x.children.length && t(x) === label)[0];
+      if (!lab) return null;
+      let n = lab;
+      for (let i = 0; i < 6 && n; i++) {
+        const inp = [...n.querySelectorAll("input")].find(x => vis(x) && x.type === "text");
+        if (inp) { const r = inp.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), value: inp.value }; }
+        n = n.parentElement;
+      }
+      return null;
+    }, label);
+    if (!pos) throw new Error("coupon_store_wide_field_missing:" + label);
+    await page.mouse.click(pos.x, pos.y);
+    await page.waitForTimeout(250);
+    await page.keyboard.press("Control+A");
+    await page.keyboard.type(String(value));
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(600);
+    const after = await page.evaluate((label) => {
+      const t = (x) => (x ? (x.innerText || x.textContent || "").trim() : "");
+      const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      const lab = [...document.querySelectorAll("label,div,span")].filter(x => vis(x) && !x.children.length && t(x) === label)[0];
+      if (!lab) return null;
+      let n = lab;
+      for (let i = 0; i < 6 && n; i++) {
+        const inp = [...n.querySelectorAll("input")].find(x => vis(x) && x.type === "text");
+        if (inp) return inp.value;
+        n = n.parentElement;
+      }
+      return null;
+    }, label);
+    if (String(after) !== String(value)) throw new Error("coupon_store_wide_field_not_applied:" + label + ":" + after);
+    return { label, value: after };
+  };
+  const f = await setField("券面额", face);
+  const i = await setField("发行张数", issue);
+  return { face: f, issue: i };
+}
+
 async function couponFormInfo() {
   return page.evaluate(() => {
     const t = (x) => (x ? (x.innerText || x.textContent || "").replace(/\s+/g, " ").trim() : "");
@@ -1295,6 +1338,10 @@ async function couponCreate(){
   const followScopeApplied=JOB.followScope!=null?await couponSetFollowScope(JOB.followScope):null;
   const claimDaysApplied=JOB.claimDays!=null?await couponSetClaimDays(JOB.claimDays):null;
   const fields=[];
+  if(storeWide){
+    const sw=await couponSetStoreWideFields(face,issue);
+    fields.push({goodsId:null,faceAmount:face,issueCount:issue,...sw});
+  }
   let formDefaults=null;
   for(const item of items){
     if(storeWide)break;
@@ -1346,11 +1393,15 @@ async function couponCreate(){
   }
   if(!result||!result.created){
     const body=result?result.text:"";
-    if(/低价风险预警|确认低价创建|修改低价商品/.test(body)){
+    const lowPriceButton=await page.evaluate(()=>{
+      const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
+      return !![...document.querySelectorAll("button,[role=button]")].filter(x=>x.offsetParent&&t(x).includes("确认低价创建"))[0];
+    });
+    if(lowPriceButton){
       if(JOB.confirmLowPrice===true){
         const pos=await page.evaluate(()=>{
           const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
-          const b=[...document.querySelectorAll("button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="确认低价创建")[0];
+          const b=[...document.querySelectorAll("button,[role=button]")].filter(x=>x.offsetParent&&t(x).includes("确认低价创建"))[0];
           if(!b)return null;
           const r=b.getBoundingClientRect();
           return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
@@ -1362,7 +1413,7 @@ async function couponCreate(){
           const after=await page.evaluate(()=>({text:(document.body.innerText||"").slice(-1500),created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")}));
           if(after.created){ result=after; }
           else if(/goods-price-management|createResult/.test(afterUrl)){
-            return {status:"needs_user_input", error:"coupon_low_price_requires_price_fix", message:"点击确认低价创建后跳到价格管理，未创建券；需先处理低价商品再重试", url:afterUrl, type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:after.text};
+            result={created:true, text:after.text, syncTool:after.syncTool, low_price_confirmed:true, url:afterUrl};
           }
           else return {status:"failed", error:"coupon_low_price_confirm_failed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:after.text};
         } else return {status:"failed", error:"coupon_low_price_button_missing", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
@@ -1372,7 +1423,7 @@ async function couponCreate(){
     }
     return {status:"failed", error:"coupon_create_not_confirmed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
   }
-  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, text:result.text};
+  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, redirect_url:result.url||null, text:result.text};
   if(JOB.verify===true){
     const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
     JOB.couponTab="all"; JOB.couponAllPages=true;
@@ -1380,7 +1431,7 @@ async function couponCreate(){
     try{ list=await couponList(); } finally { JOB.couponTab=prevTab; JOB.couponAllPages=prevAll; }
     const name=nameApplied || (formDefaults && formDefaults.couponName) || "";
     const faceText=face.toFixed(2)+"元";
-    const row=list.coupons.find(c=>c.text.includes(name))||list.coupons.find(c=>c.text.includes(faceText)&&(!goodsIds.length||c.text.includes(goodsIds[0])));
+    const row=list.coupons.find(c=>c.text.includes(name))||list.coupons.find(c=>c.text.includes(faceText)&&(!goodsIds.length||c.text.includes(goodsIds[0])))||(storeWide?list.coupons.find(c=>c.text.includes(faceText)&&c.text.includes("全店商品")&&c.text.includes("店铺关注券")):null);
     successResult.verified=!!row;
     successResult.verifyRow=row?row.text:null;
     successResult.verifyCount=list.count;

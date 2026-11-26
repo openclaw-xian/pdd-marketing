@@ -254,3 +254,9 @@ node run.mjs coupon-close.json          # 结束
 - claimDays 7/30/90/365 实测通过。
 - 分页/closeAll 上限 50。
 - confirmLowPrice 点确认后跳 goods-price-management，未创建券；返回 needs_user_input + coupon_low_price_requires_price_fix。
+
+## 17. 0.9.20 补充
+
+- 全店关注券补 `couponSetStoreWideFields`：按「券面额」「发行张数」标签填顶层输入框。
+- 全店券显示名固定「全店商品店铺关注券」。
+- confirmLowPrice 按钮含子元素，leaf-exact 找不到；改 button/[role=button] includes 后仍误报，待修。
