@@ -510,7 +510,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - 全店关注券：`followScope:all` 可不传 goodsIds；`verify` 按券名+面额回读，`coupon-close` 可按 couponName 关闭
 - `claimDays`：领取时间 1～365 天可配，驱动日历选起止日；实测 45 天创建+verify+结束成功
 - `confirmLowPrice:true`：低价风险预警时显式确认「确认低价创建」；不传返回 `needs_user_input`
-- 已知问题：多商品创建第二个商品仍 `coupon_row_missing`，疑似页面单商品限制；建议一次一个商品
+- 多商品限制：若商品已有生效中的商品立减券，选品器 checkbox 禁用并提示「该商品已存在生效中的商品立减券」；换无冲突商品即可
 - `coupon-close` 按 goodsId + 券类型 + 面额精确匹配；多张匹配直接报错，不盲关；**必须显式 `confirmClose:true` 才真正结束**，否则只返回 preview
 - `coupon-list` 支持 `couponAllPages:true` 逐页读取；`coupon-close` 自动逐页搜索目标券
 - 店铺关注券：类型别名 `关注店铺商品券` / `关注店铺券` 也归入 `店铺关注券`；使用时间默认 30 天（7～90）

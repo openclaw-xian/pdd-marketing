@@ -223,7 +223,7 @@ node run.mjs coupon-close.json          # 结束
 - `verify:true` 无 goodsIds（全店券）时按券名 + 面额回读。
 - `coupon-close` 允许不传 goodsId，按 `couponName` + 类型 + 面额关闭全店券。
 - 商品选择器分页点击也加 `scrollIntoView`，避免点击视口外。
-- 已知：多商品第二个商品仍 `coupon_row_missing`，建议一次一个商品。
+- 多商品限制：已有生效商品立减券的商品在选品器 checkbox 禁用，tooltip「该商品已存在生效中的商品立减券」；换无冲突商品即可。
 
 ## 12. 0.9.13 补充
 
@@ -231,4 +231,4 @@ node run.mjs coupon-close.json          # 结束
 - 商品选择器优先按商品 ID/名称搜索，失败再翻页。
 - `confirmLowPrice:true`：低价风险预警时显式点「确认低价创建」；不传返回 `needs_user_input`。
 - `couponRowInfo` 增加滚动重试。
-- 已知：多商品第二个商品仍 `coupon_row_missing`，建议一次一个商品。
+- 多商品限制：已有生效商品立减券的商品在选品器 checkbox 禁用，tooltip「该商品已存在生效中的商品立减券」；换无冲突商品即可。
