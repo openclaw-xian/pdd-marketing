@@ -1358,8 +1358,12 @@ async function couponCreate(){
         if(pos){
           await page.mouse.click(pos.x,pos.y);
           await page.waitForTimeout(2000);
+          const afterUrl=await page.url().catch(()=>"");
           const after=await page.evaluate(()=>({text:(document.body.innerText||"").slice(-1500),created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")}));
           if(after.created){ result=after; }
+          else if(/goods-price-management|createResult/.test(afterUrl)){
+            return {status:"needs_user_input", error:"coupon_low_price_requires_price_fix", message:"点击确认低价创建后跳到价格管理，未创建券；需先处理低价商品再重试", url:afterUrl, type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:after.text};
+          }
           else return {status:"failed", error:"coupon_low_price_confirm_failed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:after.text};
         } else return {status:"failed", error:"coupon_low_price_button_missing", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
       } else {
@@ -1450,7 +1454,7 @@ async function couponList(){
     });
     return {count:coupons.length,coupons};
   });
-  const maxPages=JOB.couponAllPages===true?20:1;
+  const maxPages=JOB.couponAllPages===true?50:1;
   const all=[];
   let pages=0;
   for(let n=1;n<=maxPages;n++){
@@ -1497,7 +1501,7 @@ async function couponCloseAll(goodsId,typeAliases,face,couponName){
     return {status:"preview",couponName,rows,count:rows.length,wouldClose:true,note:"confirmClose!=true: 未结束"};
   }
   let closedCount=0;
-  for(let round=0;round<20;round++){
+  for(let round=0;round<50;round++){
     const hit=await page.evaluate(({couponName,typeAliases,face})=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
       const rows=[...document.querySelectorAll("tr")].filter(r=>{if(!r.offsetParent)return false;const cells=[...r.querySelectorAll("td")].map(t);return (cells[0]||"")===couponName;}).filter(r=>{

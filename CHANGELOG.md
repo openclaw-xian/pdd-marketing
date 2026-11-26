@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.19 — 2026-11-26
+
+- `claimDays` 边界实测：7/30/90/365 天全部正确（2026-11-26~12-02 / 12-25 / 2027-02-23 / 2027-11-25）。
+- 分页上限 20→50；`closeAll` 轮次 20→50。
+- `confirmLowPrice` 实测：点「确认低价创建」会跳到价格管理，未创建券；代码改为返回 `needs_user_input` + `coupon_low_price_requires_price_fix`。
+- 已知未做：`issueCount` 上限、结束确认按钮作用域、审计速度、额外优惠实际设置核验。
+
 ## 0.9.18 — 2026-11-26
 
 - `coupon-list` 结构化字段补全：`issue` / `claimed` / `remaining` / `perPerson` / `scope`；实测 6 元关注券 issue=100、claimed=0、remaining=100、perPerson=1、scope=全场景通用。

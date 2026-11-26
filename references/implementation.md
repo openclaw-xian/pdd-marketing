@@ -248,3 +248,9 @@ node run.mjs coupon-close.json          # 结束
 
 - `couponList` 结构化字段增加 issue/claimed/remaining/perPerson/scope。
 - `couponTab` 增加 pending/待激活；audit 列表含 pending。
+
+## 16. 0.9.19 补充
+
+- claimDays 7/30/90/365 实测通过。
+- 分页/closeAll 上限 50。
+- confirmLowPrice 点确认后跳 goods-price-management，未创建券；返回 needs_user_input + coupon_low_price_requires_price_fix。
