@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.32 — 2026-11-26
+
+- 店铺活动范围确认：Excel 批量添加、2/3 梯度、「生效设置」每日时间段、自定义活动起止时间均**不做**；限时活动时间用页面默认约 7 天。
+- 文档改为「范围外」，不再列为待办。
+
 ## 0.9.31 — 2026-11-26
 
 - 新增 `store-activity-create`：限量促销 / 限时促销；统一梯度、普通添加、默认自动创建；`items` 支持 goodsId/discount/stock；`dryRun` / `confirmCreate` / `verify`。
