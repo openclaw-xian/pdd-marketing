@@ -442,7 +442,16 @@ async function storeActivityClose() {
   await page.waitForTimeout(4000);
   await dismissCouponNotices();
   let hit = null;
-  for (let i = 0; i < 10; i++) {
+  let pagesScanned = 0;
+  for (let pageNo = 1; pageNo <= 20; pageNo++) {
+    if (pageNo > 1) {
+      const ok = await clickPageNumber(pageNo);
+      if (!ok) break;
+      await page.waitForTimeout(800);
+      await dismissCouponNotices();
+    }
+    pagesScanned = pageNo;
+    for (let i = 0; i < (pageNo === 1 ? 10 : 3); i++) {
     hit = await page.evaluate(({ name, goodsId }) => {
       const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
       const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -461,11 +470,14 @@ async function storeActivityClose() {
     }, { name, goodsId });
     if (hit && hit.count === 1 && hit.endButton) break;
     if (hit && hit.count > 1) throw new Error("store_activity_close_ambiguous:" + hit.count);
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(800);
+    }
+    if (hit && hit.count === 1 && hit.endButton) break;
+    hit = null;
   }
-  if (!hit || hit.count === 0) throw new Error("store_activity_row_not_found:" + name);
+  if (!hit || hit.count === 0) throw new Error("store_activity_row_not_found:" + name + ":pages=" + pagesScanned);
   if (!hit.endButton) throw new Error("store_activity_end_button_missing:" + name);
-  if (JOB.confirmClose !== true) return { status: "preview", activityName: name, goodsId, rowText: hit.rowText, wouldClose: true, note: "confirmClose!=true: 未结束" };
+  if (JOB.confirmClose !== true) return { status: "preview", activityName: name, goodsId, page: pagesScanned, rowText: hit.rowText, wouldClose: true, note: "confirmClose!=true: 未结束" };
   try { await page.click('css=[data-ego-store-end="1"]', { label: "结束活动" }); }
   catch (e) { await page.mouse.click(hit.x, hit.y); }
   await page.waitForTimeout(1000);
@@ -491,7 +503,7 @@ async function storeActivityClose() {
     return { found: true, status: /已结束/.test(s) ? "ended" : /进行中/.test(s) ? "active" : "unknown", hasEnd, rowText: s.slice(0, 300) };
   }, { name, goodsId });
   const closed = !state.found || state.status === "ended" || (state.found && state.hasEnd === false);
-  return { status: closed ? "done" : "failed", error: closed ? undefined : "store_activity_close_not_confirmed", activityName: name, goodsId, closed, confirm, directEnd, state, text: (await page.evaluate(() => document.body.innerText || "")).slice(-1200) };
+  return { status: closed ? "done" : "failed", error: closed ? undefined : "store_activity_close_not_confirmed", activityName: name, goodsId, page: pagesScanned, closed, confirm, directEnd, state, text: (await page.evaluate(() => document.body.innerText || "")).slice(-1200) };
 }
 
 async function storeActivityLowPriceWarnings() {
