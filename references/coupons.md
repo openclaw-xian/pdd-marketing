@@ -244,7 +244,7 @@
 
 禁止点「暂时结束并到期恢复」。
 
-## 15. 代码模式（0.9.8）
+## 15. 代码模式（0.9.9）
 
 `run.mjs` 已封装：
 
@@ -279,6 +279,11 @@
 - 创建后轮询「创建成功」，没确认返回 `failed`，不再假报 done
 - 实测某商品：合法面额 **14～25 元**；13、26、30 都是 `券后价 --`
 - `perPersonLimit`：惊喜券支持 1/2/3 张并回读校验；商品立减券/店铺关注券页面没有该字段，传了会报 `coupon_per_person_not_supported`
+- `useDays`：店铺关注券使用时间 7～90 天可配
+- `items`：商品立减券按商品分别设置 `{goodsId, faceAmount, issueCount}`
+- `verify:true`：创建后自动回读 active 列表，按券名/面额/商品 ID 校验
+- `followScope`：店铺关注券 `all`（全店）/`products`（指定商品）
+- 已知未做：`claimDays` 自定义领取时长（日期选择器需进一步探查）
 
 ### 店铺关注券 / 惊喜券
 
@@ -319,7 +324,7 @@
 ### coupon-list
 
 - 支持 `couponTab`：`active` / `ended` / `all`（也接受中文「生效中 / 已结束 / 全部」）
-- `couponAllPages:true` 逐页读取（1～20 页），返回 `pages`；实测「全部」45 张 / 5 页
+- `couponAllPages:true` 逐页读取（1～20 页），返回 `pages`、`statusCounts`、结构化 `type/goodsId/face/status/cells`；实测「全部」153 张 / 17 页
 - 读取前自动关闭右上角「新消息」弹窗
 - 轮询等待表格行稳定，避免刚创建/刚结束时读到旧数据
 - 返回 `count`、`coupons`、`tab`、`notices`
@@ -331,6 +336,7 @@
 - 匹配到多张返回 `coupon_close_ambiguous`
 - 读取前自动关闭「新消息」弹窗；否则点击会落到弹窗，弹「请选择反馈内容」
 - **必须显式 `confirmClose:true` 才点结束**；否则返回 `preview`（含 rowText）
+- 支持 `couponName` 精确匹配；分页已修复（滚动到分页器再点，避免重复读同一页）
 - 默认切到「生效中」页签；自动逐页搜索目标券（1～20 页）
 - 兼容单步确认（惊喜券：`确认`）和两段确认（商品立减券/店铺关注券：`确认结束` → `直接结束`）
 - 最后校验「成功停止该优惠券发行」

@@ -204,3 +204,15 @@ node run.mjs coupon-create-dryrun.json  # 预览，不创建
 node run.mjs coupon-create.json         # confirmCreate:true 才创建
 node run.mjs coupon-close.json          # 结束
 ```
+
+## 10. 0.9.9 补充
+
+- `couponList` 返回 `type` / `goodsId` / `face` / `status` / `cells` 结构化字段和 `statusCounts`；`couponAllPages:true` 逐页读取。
+- 分页修复：点击分页器前必须 `scrollIntoView`，否则点击落在视口外，会重复读同一页。
+- `couponClose` 支持 `couponName` 精确匹配，避免同商品同面额多张券误关。
+- `useDays`：店铺关注券使用时间 7～90 天。
+- `items`：商品立减券按商品分别设置 `{goodsId, faceAmount, issueCount}`。
+- `verify:true`：创建后自动回读 active 列表，按券名/面额/商品 ID 校验。
+- `followScope`：店铺关注券 `all`（全店）/`products`（指定商品）；全店模式不选商品。
+- `couponSelectProduct` 的固定等待改为轮询。
+- 已知未做：`claimDays` 自定义领取时长（日期选择器需进一步探查）。

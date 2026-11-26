@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.9 — 2026-11-26
+
+- `coupon-list` 返回结构化字段（type/goodsId/face/status/cells）和 `statusCounts`；`coupon-audit` 同步输出。
+- `coupon-close` 支持 `couponName` 精确匹配；修复分页点击未滚动到视口导致重复读同一页的问题（实测全部 153 张 / 17 页，唯一 153 条）。
+- 新增 `useDays`：店铺关注券使用时间 7～90 天可配；实测 45 天。
+- 新增 `items`：商品立减券支持按商品分别设置 `{goodsId, faceAmount, issueCount}`。
+- 新增 `verify:true`：创建后自动回读 active 列表，按券名/面额/商品 ID 校验。
+- 新增 `followScope`：店铺关注券支持 `all`（全店）/`products`（指定商品）；实测 all 预览成功。
+- `couponSelectProduct` 固定等待改为轮询，审计 3 种券 + 12 个边界 55.4s。
+- 已知未做：`claimDays` 自定义领取时长（日期选择器需进一步探查）。
+
 ## 0.9.8 — 2026-11-26
 
 - `coupon-close` 增加 `confirmClose:true` 硬门；不传只返回 `preview`（含将结束的 rowText），不点结束。

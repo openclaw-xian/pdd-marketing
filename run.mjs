@@ -33,7 +33,8 @@ if (mode === "platform-preview" || mode === "platform-search" || mode === "platf
 }
 if (mode === "coupon-create") {
   if (!CFG.couponType) addIssue("coupon_type_missing", "coupon-create 需要 couponType");
-  if (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length) addIssue("coupon_goods_ids_missing", "coupon-create 需要 goodsIds");
+  const storeWide = CFG.couponType === "店铺关注券" && ["all", "全店", "store"].includes(String(CFG.followScope || "").toLowerCase());
+  if (!storeWide && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length)) addIssue("coupon_goods_ids_missing", "coupon-create 需要 goodsIds（全店关注券可传 followScope:all）");
   if (!Number.isFinite(Number(CFG.faceAmount))) addIssue("coupon_face_missing", "coupon-create 需要 faceAmount");
   if (!Number.isFinite(Number(CFG.issueCount))) addIssue("coupon_issue_missing", "coupon-create 需要 issueCount");
 }
@@ -58,6 +59,10 @@ async function runOne(store, i) {
     couponType: CFG.couponType,
     couponTypes: CFG.couponTypes || null,
     probeRange: CFG.probeRange === true,
+    items: CFG.items || null,
+    verify: CFG.verify === true,
+    useDays: CFG.useDays != null ? Number(CFG.useDays) : null,
+    followScope: CFG.followScope || null,
     faceAmount: CFG.faceAmount,
     issueCount: CFG.issueCount,
     perPersonLimit: CFG.perPersonLimit,
