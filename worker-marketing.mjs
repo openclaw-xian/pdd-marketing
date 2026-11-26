@@ -1463,7 +1463,7 @@ async function couponCreate(){
           return {status:"failed",error:"coupon_create_not_confirmed",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
     }
   }
-  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, pending_verification:result.pending_verification===true, verified:result.pending_verification===true?false:undefined, low_price_warnings:result.warnings||[], extras_requested:(JOB.extraDiscount>0||JOB.surpriseExtraDiscount>0), extras_verified:result.pending_verification===true?false:((JOB.extraDiscount>0||JOB.surpriseExtraDiscount>0)?/全站营销额外设置|额外优惠/.test(result.text||""):true), redirect_url:result.url||null, text:result.text};
+  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, pending_verification:result.pending_verification===true, verified:result.pending_verification===true?false:undefined, display_name:storeWide?"全店商品店铺关注券":undefined, custom_name_ignored:storeWide&&!!JOB.couponName, low_price_warnings:result.warnings||[], extras_requested:(JOB.extraDiscount>0||JOB.surpriseExtraDiscount>0), extras_verified:result.pending_verification===true?false:((JOB.extraDiscount>0||JOB.surpriseExtraDiscount>0)?/全站营销额外设置|额外优惠/.test(result.text||""):true), redirect_url:result.url||null, text:result.text};
   if(JOB.verify===true && result.pending_verification!==true){
     const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
     JOB.couponTab="all"; JOB.couponAllPages=true;
@@ -1496,8 +1496,12 @@ async function couponClickPage(n){
 }
 
 async function couponList(){
-  await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
-  await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
+  if(JOB.couponNoReload===true){
+    await page.waitForTimeout(500);
+  } else {
+    await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
+    await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
+  }
   const notices=await dismissCouponNotices();
   const tab=String(JOB.couponTab||"").trim();
   if(tab){
@@ -1526,6 +1530,7 @@ async function couponList(){
     const coupons=rows.filter(r=>/商品立减券|店铺关注券|关注店铺商品券|关注店铺券|惊喜券|场景专属券/.test(t(r))).map(r=>{
       const text=t(r);
       const cells=[...r.querySelectorAll("td")].map(x=>t(x).slice(0,120));
+      const claim=(cells[6]||"").split(" 至 ");
       const issueM=text.match(/([0-9]+) *[(]已领取 *([0-9]+)张，剩余 *([0-9]+)张[)]/);
       const perM=text.match(/[)] *([0-9]+) +([^ ]+) +(领取中|已结束|待激活|已失效|审核中)/);
       return {
@@ -1534,6 +1539,9 @@ async function couponList(){
         type:(text.match(/商品立减券|店铺关注券|关注店铺商品券|关注店铺券|惊喜券|场景专属券/)||[])[0]||null,
         goodsId:(text.match(/ID:\s*(\d+)/)||[])[1]||null,
         face:(text.match(/([0-9.]+)元/)||[])[1]||null,
+        claimStart:claim[0]||null,
+        claimEnd:claim[1]||null,
+        useTime:cells[7]||null,
         issue:issueM?Number(issueM[1]):null,
         claimed:issueM?Number(issueM[2]):null,
         remaining:issueM?Number(issueM[3]):null,
@@ -1545,7 +1553,7 @@ async function couponList(){
     });
     return {count:coupons.length,coupons};
   });
-  const maxPages=JOB.couponAllPages===true?50:1;
+  const maxPages=JOB.couponAllPages===true?100:1;
   const all=[];
   let pages=0;
   for(let n=1;n<=maxPages;n++){
@@ -1599,7 +1607,7 @@ async function couponCloseAll(goodsId,typeAliases,face,couponName){
     return {status:"preview",couponName,rows,count:rows.length,wouldClose:true,note:"confirmClose!=true: 未结束"};
   }
   let closedCount=0;
-  for(let round=0;round<50;round++){
+  for(let round=0;round<100;round++){
     const hit=await page.evaluate(({couponName,typeAliases,face})=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
       const rows=[...document.querySelectorAll("tr")].filter(r=>{if(!r.offsetParent)return false;const cells=[...r.querySelectorAll("td")].map(t);return (cells[0]||"")===couponName;}).filter(r=>{
@@ -1721,12 +1729,16 @@ async function couponAudit() {
   const list = {};
   const prevAllPages = JOB.couponAllPages;
   JOB.couponAllPages = true;
+  let firstTab = true;
   for (const tab of ["active", "ended", "pending", "all"]) {
     JOB.couponTab = tab;
+    JOB.couponNoReload = !firstTab;
+    firstTab = false;
     const d = await couponList();
     list[tab] = { count: d.count, pages: d.pages, statusCounts: d.statusCounts, coupons: d.coupons.map(c => c.text) };
   }
   JOB.couponAllPages = prevAllPages;
+  JOB.couponNoReload = false;
   JOB.couponTab = null;
   const typesOut = {};
   for (const type of types) {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.29 — 2026-11-26
+
+- 分页上限 50→100；closeAll 轮次 50→100。
+- `coupon-audit` 列表页签改为首次 `goto`、后续只切页签（`couponNoReload`），降低审计耗时。
+- `coupon-list` 增加 `claimStart` / `claimEnd` / `useTime` 结构化字段。
+- 全店券结果增加 `display_name` / `custom_name_ignored`，明确自定义名不展示。
+- `items` 里 goodsId 重复时 preflight 直接拦截（`coupon_items_duplicate`）。
+
 ## 0.9.28 — 2026-11-26
 
 - 探查价格管理「价格及优惠详情」：按商品 ID 查询成功，但详情页没有额外优惠 / 全站营销 / 惊喜券额外优惠字段。

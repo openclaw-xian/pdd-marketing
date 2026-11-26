@@ -299,3 +299,8 @@ node run.mjs coupon-close.json          # 结束
 ## 25. 0.9.28 补充
 
 - 价格管理「价格及优惠详情」无额外优惠字段；extras_verified 仅成功页可判，平台不展示时保持 false。
+
+## 26. 0.9.29 补充
+
+- 分页 100；audit 后续页签 couponNoReload。
+- list claimStart/claimEnd/useTime；全店 display_name/custom_name_ignored；items 重复拦截。
