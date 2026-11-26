@@ -34,9 +34,10 @@ if (mode === "platform-preview" || mode === "platform-search" || mode === "platf
 if (mode === "coupon-create") {
   if (!CFG.couponType) addIssue("coupon_type_missing", "coupon-create 需要 couponType");
   const storeWide = CFG.couponType === "店铺关注券" && ["all", "全店", "store"].includes(String(CFG.followScope || "").toLowerCase());
-  if (!storeWide && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length)) addIssue("coupon_goods_ids_missing", "coupon-create 需要 goodsIds（全店关注券可传 followScope:all）");
-  if (!Number.isFinite(Number(CFG.faceAmount))) addIssue("coupon_face_missing", "coupon-create 需要 faceAmount");
-  if (!Number.isFinite(Number(CFG.issueCount))) addIssue("coupon_issue_missing", "coupon-create 需要 issueCount");
+  const hasItems = Array.isArray(CFG.items) && CFG.items.length;
+  if (!storeWide && !hasItems && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length)) addIssue("coupon_goods_ids_missing", "coupon-create 需要 goodsIds 或 items（全店关注券可传 followScope:all）");
+  if (!hasItems && !Number.isFinite(Number(CFG.faceAmount))) addIssue("coupon_face_missing", "coupon-create 需要 faceAmount 或 items[].faceAmount");
+  if (!hasItems && !Number.isFinite(Number(CFG.issueCount))) addIssue("coupon_issue_missing", "coupon-create 需要 issueCount 或 items[].issueCount");
 }
 if (mode === "coupon-close") {
   if (!CFG.goodsId && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length)) addIssue("coupon_close_goods_id_missing", "coupon-close 需要 goodsId 或 goodsIds");

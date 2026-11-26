@@ -1225,7 +1225,7 @@ async function couponCreate(){
   const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, text:result.text};
   if(JOB.verify===true){
     const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
-    JOB.couponTab="active"; JOB.couponAllPages=true;
+    JOB.couponTab="all"; JOB.couponAllPages=true;
     let list=null;
     try{ list=await couponList(); } finally { JOB.couponTab=prevTab; JOB.couponAllPages=prevAll; }
     const name=nameApplied || (formDefaults && formDefaults.couponName) || "";

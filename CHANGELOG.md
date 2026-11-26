@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.10 — 2026-11-26
+
+- 修复 `coupon-create` preflight：使用 `items` 时不再强制要求 `goodsIds` / `faceAmount` / `issueCount`。
+- `verify:true` 改为回读「全部」页签，避免券在待激活/非生效中时误判。
+- 实测：`items` + `verify` 创建 14 元 / 100 张商品立减券成功，全部页签可查到；随后按 `couponName` 关闭成功。
+
 ## 0.9.9 — 2026-11-26
 
 - `coupon-list` 返回结构化字段（type/goodsId/face/status/cells）和 `statusCounts`；`coupon-audit` 同步输出。
