@@ -949,8 +949,27 @@ async function couponSelectProduct(goodsId) {
   await page.mouse.click(btn.x, btn.y);
   await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),10000);
 
+  let searchUsed=false;
+  const searchBox=await page.evaluate(()=>{
+    const i=[...document.querySelectorAll("input")].find(x=>x.offsetParent&&/输入商品名称或ID/.test(x.placeholder||""));
+    if(!i)return null;
+    const r=i.getBoundingClientRect();
+    const q=[...document.querySelectorAll("div,span,button")].filter(x=>x.offsetParent&&!x.children.length&&(x.innerText||x.textContent||"").trim()==="查询")[0];
+    const qr=q?q.getBoundingClientRect():null;
+    return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),qx:qr?Math.round(qr.x+qr.width/2):null,qy:qr?Math.round(qr.y+qr.height/2):null};
+  });
+  if(searchBox){
+    await page.mouse.click(searchBox.x,searchBox.y);
+    await page.keyboard.press("Control+A");
+    await page.keyboard.type(goodsId);
+    if(searchBox.qx!=null) await page.mouse.click(searchBox.qx,searchBox.qy);
+    else await page.keyboard.press("Enter");
+    await page.waitForTimeout(1800);
+    searchUsed=true;
+  }
+
   let found=false;
-  for(const pageNo of [1,2,3,4]) {
+  for(const pageNo of (searchUsed?[1]:[1,2,3,4])) {
     const pb=await page.evaluate((n)=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
       const el=[...document.querySelectorAll("[class*=PGT_pagerItem]")].filter(x=>x.offsetParent).find(x=>t(x)===String(n));
@@ -1223,7 +1242,24 @@ async function couponCreate(){
   if(!result||!result.created){
     const body=result?result.text:"";
     if(/低价风险预警|确认低价创建|修改低价商品/.test(body)){
-      return {status:"needs_user_input", error:"coupon_low_price_warning", message:"平台提示低价风险，未提交；请确认是否继续或修改商品", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
+      if(JOB.confirmLowPrice===true){
+        const pos=await page.evaluate(()=>{
+          const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
+          const b=[...document.querySelectorAll("button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="确认低价创建")[0];
+          if(!b)return null;
+          const r=b.getBoundingClientRect();
+          return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+        });
+        if(pos){
+          await page.mouse.click(pos.x,pos.y);
+          await page.waitForTimeout(2000);
+          const after=await page.evaluate(()=>({text:(document.body.innerText||"").slice(-1500),created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")}));
+          if(after.created){ result=after; }
+          else return {status:"failed", error:"coupon_low_price_confirm_failed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:after.text};
+        } else return {status:"failed", error:"coupon_low_price_button_missing", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
+      } else {
+        return {status:"needs_user_input", error:"coupon_low_price_warning", message:"平台提示低价风险，未提交；请确认是否继续或修改商品", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
+      }
     }
     return {status:"failed", error:"coupon_create_not_confirmed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
   }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.12 — 2026-11-26
+
+- 商品选择器支持按商品 ID/名称搜索（placeholder「输入商品名称或ID」），优先搜索，失败再翻页。
+- 新增 `confirmLowPrice:true`：低价风险预警时可显式点「确认低价创建」；不传仍返回 `needs_user_input`。
+- 实测：多商品第二商品可被搜索到，但确认后创建页未出现该商品行（`coupon_row_missing`），待查资格/多选限制。
+- 已知未做：`claimDays`（领取时间日期选择器，输入框 readonly，需驱动日历）。
+
 ## 0.9.11 — 2026-11-26
 
 - 新增低价风险守卫：创建时出现「低价风险预警 / 确认低价创建」返回 `needs_user_input`（`coupon_low_price_warning`），不自动确认。
