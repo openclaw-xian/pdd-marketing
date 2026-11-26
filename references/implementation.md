@@ -265,3 +265,8 @@ node run.mjs coupon-close.json          # 结束
 
 - 低价弹窗解析 warnings[]；默认 needs_user_input，不自动确认。
 - confirmLowPrice 自动点击仍不稳定，按钮定位待修。
+
+## 19. 0.9.22 补充
+
+- warnings[] 增加 goodsId/goodsName，couponPrice 清理「查看优惠叠加」。
+- needs_user_input.message 汇总全部低价商品明细。

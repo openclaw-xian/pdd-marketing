@@ -1400,7 +1400,13 @@ async function couponCreate(){
       modals.sort((a,b)=>{const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();return ra.width*ra.height-rb.width*rb.height;});
       const m=modals[0];
       if(!m)return [];
-      return [...m.querySelectorAll("tr")].filter(vis).map(r=>[...r.querySelectorAll("td")].map(x=>t(x))).filter(c=>c.length>=4&&c[0]!=="商品信息").map(c=>({goods:c[0],price:c[1],activityPrice:c[2],couponPrice:c[3],reason:c[4]||""}));
+      return [...m.querySelectorAll("tr")].filter(vis).map(r=>[...r.querySelectorAll("td")].map(x=>t(x))).filter(c=>c.length>=4&&c[0]!=="商品信息").map(c=>{
+        const goods=c[0]||"";
+        const id=(goods.match(/ID: *([0-9]+)/)||[])[1]||null;
+        const name=goods.replace(/ID: *[0-9]+/,"").trim();
+        const couponPrice=(c[3]||"").replace("查看优惠叠加","").trim();
+        return {goods,goodsId:id,goodsName:name,price:c[1],activityPrice:c[2],couponPrice,reason:c[4]||""};
+      });
     });
     const marked=await page.evaluate(()=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
@@ -1431,7 +1437,8 @@ async function couponCreate(){
           return {status:"failed",error:"coupon_low_price_confirm_failed",warnings,low_price_button:marked,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:after.text};
         }
       } else {
-        return {status:"needs_user_input",error:"coupon_low_price_warning",message:"平台提示低价风险，未提交；请确认以下商品是否继续",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
+        const warningsSummary=warnings.map((w,i)=>`${i+1}. ${w.goodsName}（ID ${w.goodsId||"-"}）拼单价 ${w.price} / 活动价 ${w.activityPrice} / 券后价 ${w.couponPrice} / ${w.reason}`).join("；");
+        return {status:"needs_user_input",error:"coupon_low_price_warning",message:`平台提示低价风险，未提交。共 ${warnings.length} 个商品：${warningsSummary}。请确认是否继续`,warningsSummary,warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
       }
     }
     return {status:"failed",error:"coupon_create_not_confirmed",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};

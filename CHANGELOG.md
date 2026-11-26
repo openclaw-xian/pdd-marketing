@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.22 — 2026-11-26
+
+- 低价风险回读补全 `goodsId` / `goodsName`，`couponPrice` 清理「查看优惠叠加」。
+- `message` 汇报全部低价商品明细：商品名、ID、拼单价、活动价、券后价、原因；实测 4 个商品全部出现在 CLI NEEDS 输出。
+- 默认仍返回 `needs_user_input`，不自动确认，由用户决定。
+
 ## 0.9.21 — 2026-11-26
 
 - 低价风险提示改为结构化回读：`warnings[]` 含 goods / price / activityPrice / couponPrice / reason；默认返回 `needs_user_input`，由用户决定，不自动确认。
