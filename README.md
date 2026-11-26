@@ -2,6 +2,8 @@
 
 拼多多多店铺营销活动 + 优惠券 skill。
 
+**状态：定稿 0.9.30（2026-11-26）。**
+
 ## 当前模式
 
 只读/预览：
@@ -20,6 +22,12 @@
   - `confirmSubmit` 必须为 `true` 才提交
   - `trafficProtection` 可设为 `on` / `off`
   - 未授权时只准备页面，不提交
+
+优惠券：
+- `coupon-create`：商品立减券 / 店铺关注券 / 惊喜券；`dryRun` / `confirmCreate` / `verify` / `verifyAfterSec`
+- `coupon-list`：`active` / `ended` / `pending` / `all`；`couponAllPages`；结构化字段
+- `coupon-close`：`confirmClose`；`couponName` 精确匹配；`closeAll` 跨页；`expectedCount`
+- `coupon-audit`：一次跑三页签 + 三券种 + 面额边界 + options
 
 ```bash
 node run.mjs marketing-config.json
