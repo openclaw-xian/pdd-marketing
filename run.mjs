@@ -64,6 +64,7 @@ async function runOne(store, i) {
     verify: CFG.verify === true,
     useDays: CFG.useDays != null ? Number(CFG.useDays) : null,
     followScope: CFG.followScope || null,
+    claimDays: CFG.claimDays != null ? Number(CFG.claimDays) : null,
     faceAmount: CFG.faceAmount,
     issueCount: CFG.issueCount,
     perPersonLimit: CFG.perPersonLimit,

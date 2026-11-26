@@ -492,7 +492,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 出现额外设置：立即结束并重做。
 
-### 代码模式（0.9.11）
+### 代码模式（0.9.13）
 
 - `coupon-create` 默认只预览；**必须显式 `confirmCreate:true` 才真正创建**
 - `dryRun:true` 返回 `formDefaults` / `validRange`，用于创建前和用户对齐
@@ -508,8 +508,9 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - `followScope`：店铺关注券 `all`（全店）/`products`（指定商品）
 - 低价风险守卫：创建时出现「低价风险预警 / 确认低价创建」返回 `needs_user_input`，不自动确认
 - 全店关注券：`followScope:all` 可不传 goodsIds；`verify` 按券名+面额回读，`coupon-close` 可按 couponName 关闭
-- 已知未做：`claimDays` 自定义领取时长（日期选择器需进一步探查）
-- 已知问题：多商品创建时第二个商品在选品器未找到（待查选品器分页/资格）
+- `claimDays`：领取时间 1～365 天可配，驱动日历选起止日；实测 45 天创建+verify+结束成功
+- `confirmLowPrice:true`：低价风险预警时显式确认「确认低价创建」；不传返回 `needs_user_input`
+- 已知问题：多商品创建第二个商品仍 `coupon_row_missing`，疑似页面单商品限制；建议一次一个商品
 - `coupon-close` 按 goodsId + 券类型 + 面额精确匹配；多张匹配直接报错，不盲关；**必须显式 `confirmClose:true` 才真正结束**，否则只返回 preview
 - `coupon-list` 支持 `couponAllPages:true` 逐页读取；`coupon-close` 自动逐页搜索目标券
 - 店铺关注券：类型别名 `关注店铺商品券` / `关注店铺券` 也归入 `店铺关注券`；使用时间默认 30 天（7～90）

@@ -881,6 +881,95 @@ async function couponSetFollowScope(scope) {
   return { scope: wantAll ? "all" : "products", hasSelectProduct: hasSelect };
 }
 
+async function couponSetClaimDays(days) {
+  const n = Number(days);
+  if (!Number.isFinite(n) || n < 1 || n > 365) throw new Error("coupon_claim_days_invalid:" + days);
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const end = new Date(start); end.setDate(end.getDate() + n - 1);
+  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const startStr = fmt(start), endStr = fmt(end);
+  const input = await page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && /开始时间/.test(x.placeholder || ""));
+    if (!i) return null;
+    const r = i.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+  });
+  if (!input) throw new Error("coupon_claim_days_not_supported");
+  const open = async () => { await page.mouse.click(input.x, input.y); await page.waitForTimeout(900); };
+  await open();
+  const read = () => page.evaluate(() => {
+    const t = (x) => (x ? (x.innerText || x.textContent || "").replace(/\s+/g, " ").trim() : "");
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const heads = [...document.querySelectorAll("[class*=RPR_panelHeader]")].filter(vis).map(x => t(x));
+    const years = [...document.querySelectorAll("input")].filter(vis).filter(x => /^20\d\d年$/.test((x.value || "").trim())).map(x => x.value);
+    return { heads, years };
+  });
+  const ensure = async (side, year, month) => {
+    for (let i = 0; i < 24; i++) {
+      let cal = await read();
+      if (!cal.heads.length) { await open(); cal = await read(); }
+      if (!cal.heads.length) return false;
+      const idx = side === "left" ? 0 : cal.heads.length - 1;
+      const cm = parseInt(cal.heads[idx], 10);
+      const cy = parseInt((cal.years[idx] || "").replace("年", ""), 10);
+      if (cm === month && cy === year) return true;
+      const dir = (cy > year || (cy === year && cm > month)) ? "prev" : "next";
+      const pos = await page.evaluate(({ side, dir }) => {
+        const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+        const svgs = [...document.querySelectorAll("svg[class*=RPR_iconPrevNext]")].filter(vis).map(x => {
+          const r = x.getBoundingClientRect();
+          return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), right: /RPR_right/.test(x.getAttribute("class") || ""), cx: r.x + r.width / 2 };
+        });
+        const cand = svgs.filter(s => side === "left" ? s.cx < 500 : s.cx > 500).filter(s => dir === "next" ? s.right : !s.right);
+        return cand[0] || null;
+      }, { side, dir });
+      if (!pos) return false;
+      await page.mouse.click(pos.x, pos.y);
+      await page.waitForTimeout(500);
+    }
+    return false;
+  };
+  const okL = await ensure("left", start.getFullYear(), start.getMonth() + 1);
+  const okR = await ensure("right", end.getFullYear(), end.getMonth() + 1);
+  if (!okL || !okR) throw new Error("coupon_claim_days_panel_align_failed");
+  const clickDay = async (tableIdx, day) => {
+    const pos = await page.evaluate(({ tableIdx, day }) => {
+      const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      const tables = [...document.querySelectorAll("table")].filter(t => t.querySelector("td[role=date-cell]"));
+      const t = tables[tableIdx];
+      if (!t) return null;
+      for (const r of [...t.rows]) for (const c of [...r.cells]) {
+        const d = c.querySelector('div[class*="RPR_cell"]');
+        if (!d || /outOfMonth|disabled/i.test(d.className)) continue;
+        if ((c.innerText || "").trim() === String(day)) {
+          const rr = c.getBoundingClientRect();
+          return { x: Math.round(rr.x + rr.width / 2), y: Math.round(rr.y + rr.height / 2) };
+        }
+      }
+      return null;
+    }, { tableIdx, day });
+    if (!pos) throw new Error("coupon_claim_day_missing:" + day);
+    await page.mouse.click(pos.x, pos.y);
+    await page.waitForTimeout(350);
+  };
+  await clickDay(0, start.getDate());
+  await clickDay(1, end.getDate());
+  const conf = await page.evaluate(() => {
+    const t = (x) => (x ? (x.innerText || x.textContent || "").trim() : "");
+    const b = [...document.querySelectorAll("button,span,div")].filter(x => x.offsetParent && !x.children.length && t(x) === "确认").pop();
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+  });
+  if (conf) { await page.mouse.click(conf.x, conf.y); await page.waitForTimeout(900); }
+  const value = await page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && /开始时间/.test(x.placeholder || ""));
+    return i ? i.value : null;
+  });
+  if (!String(value).includes(startStr) || !String(value).includes(endStr)) throw new Error("coupon_claim_days_not_applied:" + value);
+  return { value, start: startStr, end: endStr };
+}
+
 async function couponFormInfo() {
   return page.evaluate(() => {
     const t = (x) => (x ? (x.innerText || x.textContent || "").replace(/\s+/g, " ").trim() : "");
@@ -1023,8 +1112,23 @@ async function couponRowInfo(goodsId) {
   }, goodsId);
 }
 
+async function couponRowInfoRetry(goodsId) {
+  for (let i = 0; i < 12; i++) {
+    const info = await couponRowInfo(goodsId);
+    if (info.ok) return info;
+    await page.evaluate(() => {
+      const t = (x) => (x ? (x.innerText || x.textContent || "").replace(/\s+/g, " ").trim() : "");
+      const table = [...document.querySelectorAll("table")].filter(x => x.offsetParent).find(x => /商品信息/.test(t(x)));
+      if (table) table.scrollIntoView({ block: "center" });
+      else window.scrollBy(0, 400);
+    });
+    await page.waitForTimeout(500);
+  }
+  return { ok: false, reason: "row_missing" };
+}
+
 async function couponTryFace(goodsId, face, issue) {
-  let info = await couponRowInfo(goodsId);
+  let info = await couponRowInfoRetry(goodsId);
   if (!info.ok) return { error: "row_missing" };
   if (!info.coords || info.coords.length < 2) return { error: "row_inputs_missing" };
   const faceC = info.coords[0];
@@ -1043,7 +1147,7 @@ async function couponTryFace(goodsId, face, issue) {
   await page.keyboard.type(String(face));
   await page.keyboard.press("Tab");
   await page.waitForTimeout(800);
-  info = await couponRowInfo(goodsId);
+  info = await couponRowInfoRetry(goodsId);
   if (!info.ok) return { error: "row_missing_after_fill" };
   const state = await page.evaluate(() => {
     const t = (x) => (x ? (x.innerText || x.textContent || "").trim() : "");
@@ -1057,7 +1161,7 @@ async function couponTryFace(goodsId, face, issue) {
 
 async function couponSetFields(goodsId, face, issue, perPerson) {
   if (perPerson != null) throw new Error("coupon_per_person_not_implemented");
-  let info = await couponRowInfo(goodsId);
+  let info = await couponRowInfoRetry(goodsId);
   if (!info.ok) throw new Error("coupon_row_missing:" + goodsId);
   if (!info.coords || info.coords.length < 2) throw new Error("coupon_row_inputs_missing:" + goodsId);
   const faceC = info.coords[0];
@@ -1074,7 +1178,7 @@ async function couponSetFields(goodsId, face, issue, perPerson) {
   await page.keyboard.type(String(issue));
   await page.keyboard.press("Tab");
   await page.waitForTimeout(1000);
-  info = await couponRowInfo(goodsId);
+  info = await couponRowInfoRetry(goodsId);
   if (!info.ok) throw new Error("coupon_row_missing_after_fill:" + goodsId);
   if (String(info.values[0]) !== String(face) || String(info.values[1]) !== String(issue)) {
     throw new Error("coupon_fields_not_applied:" + JSON.stringify(info.values));
@@ -1189,6 +1293,7 @@ async function couponCreate(){
   const perPersonApplied=JOB.perPersonLimit!=null?await couponSetPerPersonLimit(JOB.perPersonLimit):null;
   const useDaysApplied=JOB.useDays!=null?await couponSetUseDays(JOB.useDays):null;
   const followScopeApplied=JOB.followScope!=null?await couponSetFollowScope(JOB.followScope):null;
+  const claimDaysApplied=JOB.claimDays!=null?await couponSetClaimDays(JOB.claimDays):null;
   const fields=[];
   let formDefaults=null;
   for(const item of items){
@@ -1204,7 +1309,7 @@ async function couponCreate(){
           status: "needs_user_input",
           error: e.code,
           message: `券面额 ${item.faceAmount} 元不符合平台要求，建议区间 ${e.details.suggestedRange || "未知"}，请确认面额`,
-          type, goodsIds, items, face: item.faceAmount, issue: item.issueCount, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, validRange: e.details.suggestedRange || "", ...e.details
+          type, goodsIds, items, face: item.faceAmount, issue: item.issueCount, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, validRange: e.details.suggestedRange || "", ...e.details
         };
       }
       throw e;
@@ -1226,7 +1331,7 @@ async function couponCreate(){
   });
   if(!btn||btn.disabled)throw new Error("coupon_create_button_disabled");
   if(JOB.dryRun===true || JOB.confirmCreate!==true){
-    return {status:"preview", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, validRange: formDefaults?formDefaults.suggestedRange:"", extras, fields, createButton:{enabled:!btn.disabled}, note:JOB.dryRun===true?"dryRun: 未点击创建":"confirmCreate!=true: 未点击创建（需显式 confirmCreate:true）"};
+    return {status:"preview", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, validRange: formDefaults?formDefaults.suggestedRange:"", extras, fields, createButton:{enabled:!btn.disabled}, note:JOB.dryRun===true?"dryRun: 未点击创建":"confirmCreate!=true: 未点击创建（需显式 confirmCreate:true）"};
   }
   await page.mouse.click(btn.x,btn.y);
   let result=null;
@@ -1255,15 +1360,15 @@ async function couponCreate(){
           await page.waitForTimeout(2000);
           const after=await page.evaluate(()=>({text:(document.body.innerText||"").slice(-1500),created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")}));
           if(after.created){ result=after; }
-          else return {status:"failed", error:"coupon_low_price_confirm_failed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:after.text};
-        } else return {status:"failed", error:"coupon_low_price_button_missing", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
+          else return {status:"failed", error:"coupon_low_price_confirm_failed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:after.text};
+        } else return {status:"failed", error:"coupon_low_price_button_missing", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
       } else {
-        return {status:"needs_user_input", error:"coupon_low_price_warning", message:"平台提示低价风险，未提交；请确认是否继续或修改商品", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
+        return {status:"needs_user_input", error:"coupon_low_price_warning", message:"平台提示低价风险，未提交；请确认是否继续或修改商品", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
       }
     }
-    return {status:"failed", error:"coupon_create_not_confirmed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
+    return {status:"failed", error:"coupon_create_not_confirmed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
   }
-  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, text:result.text};
+  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, text:result.text};
   if(JOB.verify===true){
     const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
     JOB.couponTab="all"; JOB.couponAllPages=true;

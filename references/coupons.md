@@ -244,7 +244,7 @@
 
 禁止点「暂时结束并到期恢复」。
 
-## 15. 代码模式（0.9.11）
+## 15. 代码模式（0.9.13）
 
 `run.mjs` 已封装：
 
@@ -283,7 +283,7 @@
 - `items`：商品立减券按商品分别设置 `{goodsId, faceAmount, issueCount}`
 - `verify:true`：创建后自动回读 active 列表，按券名/面额/商品 ID 校验
 - `followScope`：店铺关注券 `all`（全店）/`products`（指定商品）
-- 已知未做：`claimDays` 自定义领取时长（日期选择器需进一步探查）
+- `claimDays`：领取时间 1～365 天可配；实测 45 天创建+verify+结束成功
 - 低价风险：创建时出现「低价风险预警」返回 `needs_user_input`，不自动确认
 - 全店关注券：`verify` 按券名+面额回读；`coupon-close` 可按 couponName 关闭
 - 已知问题：多商品第二个商品在选品器未找到（待查）

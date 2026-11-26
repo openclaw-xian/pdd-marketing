@@ -215,7 +215,7 @@ node run.mjs coupon-close.json          # 结束
 - `verify:true`：创建后自动回读 active 列表，按券名/面额/商品 ID 校验。
 - `followScope`：店铺关注券 `all`（全店）/`products`（指定商品）；全店模式不选商品。
 - `couponSelectProduct` 的固定等待改为轮询。
-- 已知未做：`claimDays` 自定义领取时长（日期选择器需进一步探查）。
+- `claimDays` 已实现（0.9.13）。
 
 ## 11. 0.9.11 补充
 
@@ -223,4 +223,12 @@ node run.mjs coupon-close.json          # 结束
 - `verify:true` 无 goodsIds（全店券）时按券名 + 面额回读。
 - `coupon-close` 允许不传 goodsId，按 `couponName` + 类型 + 面额关闭全店券。
 - 商品选择器分页点击也加 `scrollIntoView`，避免点击视口外。
-- 已知未做：`claimDays` 日期选择器；多商品第二个商品在选品器未找到。
+- 已知：多商品第二个商品仍 `coupon_row_missing`，建议一次一个商品。
+
+## 12. 0.9.13 补充
+
+- `claimDays`：点击领取时间输入框，驱动 RPR 双月日历选起止日，确认后回读日期；实测 45 天。
+- 商品选择器优先按商品 ID/名称搜索，失败再翻页。
+- `confirmLowPrice:true`：低价风险预警时显式点「确认低价创建」；不传返回 `needs_user_input`。
+- `couponRowInfo` 增加滚动重试。
+- 已知：多商品第二个商品仍 `coupon_row_missing`，建议一次一个商品。
