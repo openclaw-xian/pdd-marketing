@@ -23,7 +23,7 @@ const shops = (CFG.shops || []).map((s) => typeof s === "string" ? { shop: s } :
 const issues = [];
 const addIssue = (code, q) => issues.push({ code, question: q });
 
-if (!["activity-list", "store-activity-list", "coupon-types", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / platform-preview");
+if (!["activity-list", "store-activity-list", "coupon-types", "coupon-audit", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / coupon-audit / platform-preview");
 if (!shops.length) addIssue("shops_missing", "config 需要 shops");
 if (!CFG.recordRoot) addIssue("record_root_missing", "config 需要 recordRoot");
 if (mode === "platform-preview" || mode === "platform-search" || mode === "platform-scan" || mode === "platform-enroll" || mode === "platform-inventory") {
@@ -56,6 +56,8 @@ async function runOne(store, i) {
     goodsIds: CFG.goodsIds,
     goodsId: CFG.goodsId,
     couponType: CFG.couponType,
+    couponTypes: CFG.couponTypes || null,
+    probeRange: CFG.probeRange === true,
     faceAmount: CFG.faceAmount,
     issueCount: CFG.issueCount,
     perPersonLimit: CFG.perPersonLimit,

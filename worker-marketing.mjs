@@ -7,6 +7,16 @@ const T0 = Date.now();
 const logs = [];
 const log = (...a) => { const s = "[t=" + ((Date.now() - T0) / 1000).toFixed(1) + "s] " + a.map((x) => typeof x === "string" ? x : JSON.stringify(x)).join(" "); logs.push(s); console.log(s); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function waitForPage(fn, timeoutMs = 15000, intervalMs = 400) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const v = await fn().catch(() => null);
+    if (v) return v;
+    await page.waitForTimeout(intervalMs);
+  }
+  return null;
+}
 const RECORD_DIR = (JOB.recordRoot || "records").replace(/\\/g, "/").replace(/\/$/, "") + "/" + JOB.shop;
 const SPACE_STATE = String(JOB.spaceStatePath || (os.homedir() + "/.pdd-marketing-spaces.json")).replace(/\\/g, "/");
 let task = null, page = null;
@@ -748,7 +758,10 @@ async function couponGoto(type) {
         : "";
   if (!url) throw new Error("coupon_type_invalid:" + type);
   await page.goto(url, { timeout: 60000 });
-  await page.waitForTimeout(6000);
+  await waitForPage(async () => page.evaluate(() => {
+    const t = (x) => (x ? (x.innerText || x.textContent || "").trim() : "");
+    return !![...document.querySelectorAll("a,button,span,div")].find(x => x.offsetParent && !x.children.length && (t(x) === "选择商品" || t(x) === "创建"));
+  }), 15000);
   await dismissCouponNotices();
   return url;
 }
@@ -908,6 +921,38 @@ async function couponRowInfo(goodsId) {
       rowText: t(tr).slice(0, 500)
     };
   }, goodsId);
+}
+
+async function couponTryFace(goodsId, face, issue) {
+  let info = await couponRowInfo(goodsId);
+  if (!info.ok) return { error: "row_missing" };
+  if (!info.coords || info.coords.length < 2) return { error: "row_inputs_missing" };
+  const faceC = info.coords[0];
+  const issueC = info.coords[1];
+  if (issue != null) {
+    await page.mouse.click(issueC.x, issueC.y);
+    await page.waitForTimeout(200);
+    await page.keyboard.press("Control+A");
+    await page.keyboard.type(String(issue));
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(500);
+  }
+  await page.mouse.click(faceC.x, faceC.y);
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(String(face));
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(800);
+  info = await couponRowInfo(goodsId);
+  if (!info.ok) return { error: "row_missing_after_fill" };
+  const state = await page.evaluate(() => {
+    const t = (x) => (x ? (x.innerText || x.textContent || "").trim() : "");
+    const b = [...document.querySelectorAll("button")].filter(x => x.offsetParent && t(x) === "创建").pop();
+    const body = document.body.innerText || "";
+    const range = body.match(/建议优惠区间参考[：:]\s*([0-9.]+～[0-9.]+)/);
+    return { buttonDisabled: b ? !!b.disabled : null, suggestedRange: range ? range[1] : "" };
+  });
+  return { face, values: info.values, couponPrice: info.cells[3] || "", buttonDisabled: state.buttonDisabled, suggestedRange: state.suggestedRange };
 }
 
 async function couponSetFields(goodsId, face, issue, perPerson) {
@@ -1090,9 +1135,9 @@ async function couponList(){
   const cur=await page.url().catch(()=>"");
   if(!String(cur).includes("/tool/coupon?tab=1")){
     await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
-    await page.waitForTimeout(5000);
+    await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
   } else {
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(500);
   }
   const notices=await dismissCouponNotices();
   const tab=String(JOB.couponTab||"").trim();
@@ -1137,9 +1182,9 @@ async function couponClose(){
   const cur=await page.url().catch(()=>"");
   if(!String(cur).includes("/tool/coupon?tab=1")){
     await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
-    await page.waitForTimeout(5000);
+    await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
   } else {
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(500);
   }
   await dismissCouponNotices();
   const closeTab=String(JOB.couponTab||"active");
@@ -1197,6 +1242,56 @@ async function couponClose(){
   return {status:closed?"done":"failed", error:closed?undefined:"coupon_close_not_confirmed", goodsId, couponType:type||null, face, closed, text};
 }
 
+async function couponAudit() {
+  const types = (Array.isArray(JOB.couponTypes) && JOB.couponTypes.length ? JOB.couponTypes : ["商品立减券", "店铺关注券", "惊喜券"]).map(String);
+  const goodsId = String((JOB.goodsIds || [])[0] || JOB.goodsId || "");
+  const probeRange = JOB.probeRange === true;
+  const list = {};
+  for (const tab of ["active", "ended", "all"]) {
+    JOB.couponTab = tab;
+    const d = await couponList();
+    list[tab] = { count: d.count, coupons: d.coupons.map(c => c.text) };
+  }
+  JOB.couponTab = null;
+  const typesOut = {};
+  for (const type of types) {
+    const item = { type };
+    try {
+      await couponGoto(type);
+      if (!goodsId) {
+        item.status = "skipped";
+        item.error = "goods_id_missing";
+        typesOut[type] = item;
+        continue;
+      }
+      await couponSelectProduct(goodsId);
+      const form = await couponFormInfo();
+      item.form = form;
+      item.rangeTests = [];
+      if (probeRange && form.facePlaceholder) {
+        const m = String(form.facePlaceholder).match(/([0-9.]+)～([0-9.]+)/);
+        if (m) {
+          const min = Number(m[1]);
+          const max = Number(m[2]);
+          const values = [...new Set([min - 1, min, max, max + 1].filter(x => x > 0))];
+          let first = true;
+          for (const face of values) {
+            const r = await couponTryFace(goodsId, face, first ? 100 : null);
+            first = false;
+            item.rangeTests.push(r);
+          }
+        }
+      }
+      item.status = "done";
+    } catch (e) {
+      item.status = "failed";
+      item.error = String(e && e.message || e);
+    }
+    typesOut[type] = item;
+  }
+  return { status: "done", list, types: typesOut, goodsId };
+}
+
 async function main() {
 
   await openShop();
@@ -1204,6 +1299,7 @@ async function main() {
   if (mode === "activity-list") return { status: "done", ...(await activityList()) };
   if (mode === "store-activity-list") return { status: "done", ...(await storeActivityList()) };
   if (mode === "coupon-types") return { status: "done", ...(await couponTypes()) };
+  if (mode === "coupon-audit") return await couponAudit();
   if (mode === "coupon-create") return await couponCreate();
   if (mode === "coupon-list") return { status: "done", ...(await couponList()) };
   if (mode === "coupon-close") return await couponClose();
@@ -1219,5 +1315,5 @@ async function main() {
 let result;
 try { result=await main(); await writeResult({ok:true,...result}); }
 catch(e){ const msg=String(e.message||e); log("ERROR",msg); result={status:"failed",error:msg}; await writeResult({ok:false,...result}); }
-finally { try{ if(task) { const mode=String(JOB.mode||""); const keepByDefault=["activity-list","store-activity-list","coupon-types","coupon-list","platform-preview","platform-search","platform-scan","platform-enroll","platform-record","platform-status","platform-inventory"].includes(mode); const keep=JOB.keepOpen===true||(JOB.keepOpen!==false&&keepByDefault); if(keep) await task.handOff(); else await task.finish({keep:[]}); } }catch(e){} }
+finally { try{ if(task) { const mode=String(JOB.mode||""); const keepByDefault=["activity-list","store-activity-list","coupon-types","coupon-audit","coupon-list","platform-preview","platform-search","platform-scan","platform-enroll","platform-record","platform-status","platform-inventory"].includes(mode); const keep=JOB.keepOpen===true||(JOB.keepOpen!==false&&keepByDefault); if(keep) await task.handOff(); else await task.finish({keep:[]}); } }catch(e){} }
 console.log("WORKER_RESULT="+JSON.stringify({shop:JOB.shop,status:result&&result.status,error:result&&result.error}));
