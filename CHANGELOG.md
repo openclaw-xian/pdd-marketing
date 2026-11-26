@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.17 — 2026-11-26
+
+- `coupon-list` 每次读取前强制重新进列表，避免筛选/页签残留；实测 active 27 张 / 3 页（此前偶发只读 9 张 / 1 页）。
+- `coupon-audit` 支持多个 `goodsIds`，按商品输出 `products`；实测 2 商品，active 27 / ended 133 / all 160，耗时 93.1s。
+- `coupon-close` 的 `closeAll` 改为券名完全匹配（首列），并支持 `confirmClose:false` 预览返回将关闭行清单；实测预览 1 行、未关闭。
+
 ## 0.9.16 — 2026-11-26
 
 - 新增 `coupon-close` 的 `closeAll:true`：按 `couponName` 循环结束多商品券的所有行，返回 `closedCount`。

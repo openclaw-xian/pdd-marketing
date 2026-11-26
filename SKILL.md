@@ -492,7 +492,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 出现额外设置：立即结束并重做。
 
-### 代码模式（0.9.16）
+### 代码模式（0.9.17）
 
 - `coupon-create` 默认只预览；**必须显式 `confirmCreate:true` 才真正创建**
 - `dryRun:true` 返回 `formDefaults` / `validRange`，用于创建前和用户对齐
@@ -502,7 +502,9 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - `coupon-audit` 只读审计：一次运行、同一 space/page 内完成 active/ended/all 三个页签 + 三种券表单默认值 + 面额区间边界，实测 55.4s
 - `coupon-list` 返回结构化字段（type/goodsId/face/status/cells）和 `statusCounts`；`couponAllPages:true` 逐页读取
 - `coupon-close` 支持 `couponName` 精确匹配；分页已修复（实测全部 153 张 / 17 页）
-- `closeAll:true`：按 `couponName` 循环结束多商品券的所有行，返回 `closedCount`
+- `closeAll:true`：按 `couponName` 循环结束多商品券的所有行，返回 `closedCount`；券名按首列完全匹配，`confirmClose:false` 返回将关闭行清单
+- `coupon-list` 读取前强制重置列表，避免筛选残留
+- `coupon-audit` 支持多个 `goodsIds`，按商品输出 `products`
 - `useDays`：店铺关注券使用时间 7～90 天可配
 - `items`：商品立减券按商品分别设置 `{goodsId, faceAmount, issueCount}`
 - `verify:true`：创建后自动回读列表，按券名/面额/商品 ID 校验

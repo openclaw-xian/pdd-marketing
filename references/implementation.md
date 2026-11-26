@@ -237,3 +237,9 @@ node run.mjs coupon-close.json          # 结束
 
 - `coupon-close` 新增 `closeAll:true`：按 `couponName` 循环结束多商品券所有行，返回 `closedCount`。
 - 预检允许只传 `couponName`；`couponCloseAll` 强制重新进列表并支持 `couponTab`。
+
+## 14. 0.9.17 补充
+
+- `couponList` 每次强制 `goto` 列表，重置筛选/页签。
+- `couponAudit` 支持多个 `goodsIds`，输出 `types[type].products[goodsId]`。
+- `closeAll` 券名按首列完全匹配；`confirmClose:false` 返回 preview 行清单。

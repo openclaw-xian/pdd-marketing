@@ -1401,13 +1401,8 @@ async function couponClickPage(n){
 }
 
 async function couponList(){
-  const cur=await page.url().catch(()=>"");
-  if(!String(cur).includes("/tool/coupon?tab=1")){
-    await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
-    await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
-  } else {
-    await page.waitForTimeout(500);
-  }
+  await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
+  await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
   const notices=await dismissCouponNotices();
   const tab=String(JOB.couponTab||"").trim();
   if(tab){
@@ -1479,11 +1474,26 @@ async function couponCloseAll(goodsId,typeAliases,face,couponName){
     if(!el)return null; const r=el.getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
   },tabLabel);
   if(tabPos){await page.mouse.click(tabPos.x,tabPos.y);await page.waitForTimeout(1800);}
+  if(JOB.confirmClose!==true){
+    const rows=await page.evaluate(({couponName,typeAliases,face})=>{
+      const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
+      return [...document.querySelectorAll("tr")].filter(r=>{
+        if(!r.offsetParent)return false;
+        const cells=[...r.querySelectorAll("td")].map(t);
+        if((cells[0]||"")!==couponName)return false;
+        const s=t(r);
+        if(typeAliases.length&&!typeAliases.some(a=>s.includes(a)))return false;
+        if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
+        return !![...r.querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
+      }).map(r=>t(r).slice(0,300));
+    },{couponName,typeAliases,face});
+    return {status:"preview",couponName,rows,count:rows.length,wouldClose:true,note:"confirmClose!=true: 未结束"};
+  }
   let closedCount=0;
   for(let round=0;round<20;round++){
     const hit=await page.evaluate(({couponName,typeAliases,face})=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
-      const rows=[...document.querySelectorAll("tr")].filter(r=>r.offsetParent&&t(r).includes(couponName)).filter(r=>{
+      const rows=[...document.querySelectorAll("tr")].filter(r=>{if(!r.offsetParent)return false;const cells=[...r.querySelectorAll("td")].map(t);return (cells[0]||"")===couponName;}).filter(r=>{
         const s=t(r);
         if(typeAliases.length&&!typeAliases.some(a=>s.includes(a)))return false;
         if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
@@ -1525,13 +1535,8 @@ async function couponClose(){
   const typeAliases=type?(type==="店铺关注券"?["店铺关注券","关注店铺商品券","关注店铺券"]:[type]):[];
   const face=JOB.faceAmount!=null&&JOB.faceAmount!==""?Number(JOB.faceAmount):null;
   if(JOB.closeAll===true) return await couponCloseAll(goodsId,typeAliases,face,couponName);
-  const cur=await page.url().catch(()=>"");
-  if(!String(cur).includes("/tool/coupon?tab=1")){
-    await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
-    await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
-  } else {
-    await page.waitForTimeout(500);
-  }
+  await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
+  await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
   await dismissCouponNotices();
   const closeTab=String(JOB.couponTab||"active");
   const tabLabel=closeTab==="ended"||closeTab==="已结束"?"已结束":closeTab==="all"||closeTab==="全部"?"全部":closeTab==="pending"||closeTab==="待激活"?"待激活":"生效中";
@@ -1601,7 +1606,8 @@ async function couponClose(){
 
 async function couponAudit() {
   const types = (Array.isArray(JOB.couponTypes) && JOB.couponTypes.length ? JOB.couponTypes : ["商品立减券", "店铺关注券", "惊喜券"]).map(String);
-  const goodsId = String((JOB.goodsIds || [])[0] || JOB.goodsId || "");
+  const goodsIds = (JOB.goodsIds || []).map(String).filter(Boolean);
+  if (!goodsIds.length && JOB.goodsId) goodsIds.push(String(JOB.goodsId));
   const probeRange = JOB.probeRange === true;
   const list = {};
   const prevAllPages = JOB.couponAllPages;
@@ -1615,32 +1621,34 @@ async function couponAudit() {
   JOB.couponTab = null;
   const typesOut = {};
   for (const type of types) {
-    const item = { type };
+    const item = { type, products: {} };
     try {
-      await couponGoto(type);
-      if (!goodsId) {
-        item.status = "skipped";
-        item.error = "goods_id_missing";
-        typesOut[type] = item;
-        continue;
-      }
-      await couponSelectProduct(goodsId);
-      const form = await couponFormInfo();
-      item.form = form;
-      item.rangeTests = [];
-      if (probeRange && form.facePlaceholder) {
-        const m = String(form.facePlaceholder).match(/([0-9.]+)～([0-9.]+)/);
-        if (m) {
-          const min = Number(m[1]);
-          const max = Number(m[2]);
-          const values = [...new Set([min - 1, min, max, max + 1].filter(x => x > 0))];
-          let first = true;
-          for (const face of values) {
-            const r = await couponTryFace(goodsId, face, first ? 100 : null);
-            first = false;
-            item.rangeTests.push(r);
+      const ids = goodsIds.length ? goodsIds : [null];
+      for (const gid of ids) {
+        await couponGoto(type);
+        if (!gid) {
+          item.products["none"] = { status: "skipped", error: "goods_id_missing" };
+          continue;
+        }
+        await couponSelectProduct(gid);
+        const form = await couponFormInfo();
+        const rangeTests = [];
+        if (probeRange && form.facePlaceholder) {
+          const parts = String(form.facePlaceholder).split("～");
+          const min = Number(String(parts[0] || "").replace(/[^0-9.]/g, ""));
+          const max = Number(String(parts[1] || "").replace(/[^0-9.]/g, ""));
+          if (Number.isFinite(min) && Number.isFinite(max)) {
+            const values = [...new Set([min - 1, min, max, max + 1].filter(x => x > 0))];
+            let first = true;
+            for (const face of values) {
+              const r = await couponTryFace(gid, face, first ? 100 : null);
+              first = false;
+              rangeTests.push(r);
+            }
           }
         }
+        item.products[gid] = { form, rangeTests };
+        if (!item.form) { item.form = form; item.rangeTests = rangeTests; }
       }
       item.status = "done";
     } catch (e) {
@@ -1649,7 +1657,8 @@ async function couponAudit() {
     }
     typesOut[type] = item;
   }
-  return { status: "done", list, types: typesOut, goodsId };
+  return { status: "done", list, types: typesOut, goodsIds };
+
 }
 
 async function main() {
