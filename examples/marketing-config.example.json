@@ -1,0 +1,14 @@
+{
+  "recordRoot": "D:/pdd-marketing",
+  "mode": "platform-preview",
+  "shops": [
+    { "shop": "<店铺A>", "profile": "<profile-A>" }
+  ],
+  "activityId": "<活动ID>",
+  "activityType": "<活动类型，如 21365>",
+  "goodsIds": ["<商品ID>"],
+  "selectOnly": true,
+  "expandSkus": true,
+  "confirmSubmit": false,
+  "trafficProtection": "on"
+}
