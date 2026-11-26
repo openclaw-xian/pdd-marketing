@@ -295,3 +295,7 @@ node run.mjs coupon-close.json          # 结束
 
 - 券列表「数据」不打开额外优惠详情；列表无额外优惠列。
 - extras_verified 仅在成功页出现额外设置时为 true；否则 false，需价格管理「查看优惠叠加」核验。
+
+## 25. 0.9.28 补充
+
+- 价格管理「价格及优惠详情」无额外优惠字段；extras_verified 仅成功页可判，平台不展示时保持 false。
