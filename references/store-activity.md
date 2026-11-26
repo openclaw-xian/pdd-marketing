@@ -99,7 +99,7 @@
 - 5.0 折：dryRun 成功，活动价 13.95～45.00，库存 100
 - 5 商品真实创建：`selectedCount=5`、`verified=true`；库存不传时全部使用页面默认最大值（728735 / 499950×3 / 39996），结果标记 `stockDefaulted=true`
 - 5 商品 verify：列表只展示部分商品 ID，`verified` 按活动名判定，同时返回 `verifyFoundGoodsIds` / `verifyMissingGoodsIds`
-- 5 商品结束：按活动名命中 4 行报 ambiguous；带 goodsId 结束一行后整活动结束，`state.found=false`
+- 5 商品结束：按活动名命中 4 行报 ambiguous；逐个 goodsId 结束 4 行；列表搜索无该活动名（16 条，0 命中）
 
 ## 7. 已知边界
 
