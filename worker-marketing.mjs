@@ -955,6 +955,7 @@ async function couponSelectProduct(goodsId) {
       const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
       const el=[...document.querySelectorAll("[class*=PGT_pagerItem]")].filter(x=>x.offsetParent).find(x=>t(x)===String(n));
       if(!el)return null;
+      el.scrollIntoView({block:"center",inline:"center"});
       const r=el.getBoundingClientRect();
       return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
     }, pageNo);
@@ -1220,7 +1221,11 @@ async function couponCreate(){
     if(result.created)break;
   }
   if(!result||!result.created){
-    return {status:"failed", error:"coupon_create_not_confirmed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:result?result.text:""};
+    const body=result?result.text:"";
+    if(/低价风险预警|确认低价创建|修改低价商品/.test(body)){
+      return {status:"needs_user_input", error:"coupon_low_price_warning", message:"平台提示低价风险，未提交；请确认是否继续或修改商品", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
+    }
+    return {status:"failed", error:"coupon_create_not_confirmed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, text:body};
   }
   const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, text:result.text};
   if(JOB.verify===true){
@@ -1230,7 +1235,7 @@ async function couponCreate(){
     try{ list=await couponList(); } finally { JOB.couponTab=prevTab; JOB.couponAllPages=prevAll; }
     const name=nameApplied || (formDefaults && formDefaults.couponName) || "";
     const faceText=face.toFixed(2)+"元";
-    const row=list.coupons.find(c=>c.text.includes(name)&&c.text.includes(faceText)&&c.text.includes(goodsIds[0]));
+    const row=list.coupons.find(c=>c.text.includes(name)&&c.text.includes(faceText)&&(!goodsIds.length||c.text.includes(goodsIds[0])));
     successResult.verified=!!row;
     successResult.verifyRow=row?row.text:null;
     successResult.verifyCount=list.count;
@@ -1322,11 +1327,11 @@ async function couponList(){
 
 async function couponClose(){
   const goodsId=String((JOB.goodsIds||[])[0]||JOB.goodsId||"");
-  if(!goodsId)throw new Error("coupon_close_goods_id_missing");
+  const couponName=String(JOB.couponName||"").trim();
+  if(!goodsId&&!couponName)throw new Error("coupon_close_goods_id_missing");
   const type=String(JOB.couponType||"").trim();
   const typeAliases=type?(type==="店铺关注券"?["店铺关注券","关注店铺商品券","关注店铺券"]:[type]):[];
   const face=JOB.faceAmount!=null&&JOB.faceAmount!==""?Number(JOB.faceAmount):null;
-  const couponName=String(JOB.couponName||"").trim();
   const cur=await page.url().catch(()=>"");
   if(!String(cur).includes("/tool/coupon?tab=1")){
     await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
@@ -1355,7 +1360,7 @@ async function couponClose(){
     for(let i=0;i<3;i++){
       hit=await page.evaluate(({id,typeAliases,face,couponName})=>{
         const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
-        const rows=[...document.querySelectorAll("tr")].filter(r=>r.offsetParent&&t(r).includes(id)).filter(r=>{
+        const rows=[...document.querySelectorAll("tr")].filter(r=>r.offsetParent&&(!id||t(r).includes(id))).filter(r=>{
           const s=t(r);
           if(typeAliases.length&&!typeAliases.some(a=>s.includes(a)))return false;
           if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;

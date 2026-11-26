@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.11 — 2026-11-26
+
+- 新增低价风险守卫：创建时出现「低价风险预警 / 确认低价创建」返回 `needs_user_input`（`coupon_low_price_warning`），不自动确认。
+- `verify:true` 在无 `goodsIds`（全店券）时按券名 + 面额回读。
+- `coupon-close` 允许不传 `goodsId`，按 `couponName` + 类型 + 面额关闭全店券。
+- 修复商品选择器分页点击未滚动到视口的问题。
+- 实测：店铺关注券 useDays 45 创建 + verify + 关闭成功；全店关注券创建触发低价预警并正确停下；items + verify 单商品创建/关闭成功；额外优惠开启创建/关闭成功。
+- 已知未做/未通过：`claimDays` 自定义领取时长（日期选择器）；多商品第二个商品在选品器未找到，待查。
+
 ## 0.9.10 — 2026-11-26
 
 - 修复 `coupon-create` preflight：使用 `items` 时不再强制要求 `goodsIds` / `faceAmount` / `issueCount`。

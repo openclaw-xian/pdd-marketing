@@ -216,3 +216,11 @@ node run.mjs coupon-close.json          # 结束
 - `followScope`：店铺关注券 `all`（全店）/`products`（指定商品）；全店模式不选商品。
 - `couponSelectProduct` 的固定等待改为轮询。
 - 已知未做：`claimDays` 自定义领取时长（日期选择器需进一步探查）。
+
+## 11. 0.9.11 补充
+
+- 低价风险守卫：点创建后若出现「低价风险预警 / 确认低价创建 / 修改低价商品」，返回 `needs_user_input`（`coupon_low_price_warning`），不自动确认。
+- `verify:true` 无 goodsIds（全店券）时按券名 + 面额回读。
+- `coupon-close` 允许不传 goodsId，按 `couponName` + 类型 + 面额关闭全店券。
+- 商品选择器分页点击也加 `scrollIntoView`，避免点击视口外。
+- 已知未做：`claimDays` 日期选择器；多商品第二个商品在选品器未找到。
