@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.7 — 2026-11-26
+
+- 新增 `references/implementation.md`：文件结构、运行模型、空间/页面复用、`waitForPage`、三种券创建/列表/结束、`coupon-audit`、错误码/退出码、维护指南。
+- `SKILL.md` 参考区补上 `implementation.md` 链接。
+
 ## 0.9.6 — 2026-11-26
 
 - 新增 `coupon-audit` 只读模式：一次运行、同一 space/page 内完成 active/ended/all 三个页签回读 + 三种券的表单默认值 + 面额区间边界测试。

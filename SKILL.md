@@ -513,6 +513,8 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 ## 参考
 
+- 代码实现/维护指南（空间复用、waitForPage、coupon-audit、错误码）：[references/implementation.md](references/implementation.md)
+- 优惠券创建/选品/额外优惠/结束：[references/coupons.md](references/coupons.md)
 - 平台活动报名完整操作/踩坑：[references/platform-enrollment.md](references/platform-enrollment.md)
 - 包括：虚拟滚动、加载更多、表头全选、搜索、勾选、展开箭头、逐 SKU 价格、提交门、流量保护、报名回读。
 
