@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.35 — 2026-11-26
+
+- 撤销 `store-activity-close` 逐页查找；close 只查当前页（用户确认不做逐页查找）。
+- 文档同步：逐页查找列入店铺活动范围外。
+
 ## 0.9.34 — 2026-11-26
 
 - `store-activity-close` 支持逐页查找 1～20 页，返回 `page`；实测活动在 page=2 可 preview 找到。
