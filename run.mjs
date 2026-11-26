@@ -40,7 +40,7 @@ if (mode === "coupon-create") {
   if (!hasItems && !Number.isFinite(Number(CFG.issueCount))) addIssue("coupon_issue_missing", "coupon-create 需要 issueCount 或 items[].issueCount");
 }
 if (mode === "coupon-close") {
-  if (!CFG.goodsId && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length)) addIssue("coupon_close_goods_id_missing", "coupon-close 需要 goodsId 或 goodsIds");
+  if (!CFG.goodsId && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length) && !CFG.couponName) addIssue("coupon_close_goods_id_missing", "coupon-close 需要 goodsId/goodsIds 或 couponName");
 }
 if (!existsSync(EGO)) addIssue("ego_not_found", "ego-browser 不可用");
 if (issues.length) { console.log("PREFLIGHT=needs_user_input"); console.log(JSON.stringify({ status: "needs_user_input", issues }, null, 1)); process.exit(3); }
@@ -78,6 +78,7 @@ async function runOne(store, i) {
     confirmCreate: CFG.confirmCreate === true,
     confirmClose: CFG.confirmClose === true,
     confirmLowPrice: CFG.confirmLowPrice === true,
+    closeAll: CFG.closeAll === true,
     selectOnly: CFG.selectOnly === true,
     expandSkus: CFG.expandSkus === true,
     confirmSubmit: CFG.confirmSubmit === true,

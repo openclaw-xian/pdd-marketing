@@ -232,3 +232,8 @@ node run.mjs coupon-close.json          # 结束
 - `confirmLowPrice:true`：低价风险预警时显式点「确认低价创建」；不传返回 `needs_user_input`。
 - `couponRowInfo` 增加滚动重试。
 - 多商品创建已验证：第二商品需无生效中的商品立减券；`verify` 优先按券名回读。
+
+## 13. 0.9.16 补充
+
+- `coupon-close` 新增 `closeAll:true`：按 `couponName` 循环结束多商品券所有行，返回 `closedCount`。
+- 预检允许只传 `couponName`；`couponCloseAll` 强制重新进列表并支持 `couponTab`。

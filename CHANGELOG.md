@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.16 — 2026-11-26
+
+- 新增 `coupon-close` 的 `closeAll:true`：按 `couponName` 循环结束多商品券的所有行，返回 `closedCount`。
+- `coupon-close` 预检允许只传 `couponName`（无需 goodsId）。
+- `couponCloseAll` 强制重新进列表并支持 `couponTab`，避免列表筛选/页签残留。
+- 实测：`测试closeall-1126` 两行，`closedCount=2`；生效中 27 张/3 页，搜索 0 条。
+
 ## 0.9.15 — 2026-11-26
 
 - 多商品创建已验证：换一个没有生效商品立减券的第二商品后，2 个商品提交成功，两行面额/张数正确。

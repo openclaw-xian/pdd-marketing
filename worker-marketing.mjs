@@ -1466,6 +1466,57 @@ async function couponList(){
   return {count:all.length,coupons:all,pages,statusCounts,tab:tab||"current",notices};
 }
 
+async function couponCloseAll(goodsId,typeAliases,face,couponName){
+  if(!couponName)throw new Error("coupon_close_all_name_required");
+  await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
+  await waitForPage(async()=>page.evaluate(()=>[...document.querySelectorAll("tr")].filter(x=>x.offsetParent).length>1),15000);
+  await dismissCouponNotices();
+  const closeTab=String(JOB.couponTab||"active");
+  const tabLabel=closeTab==="ended"||closeTab==="已结束"?"已结束":closeTab==="all"||closeTab==="全部"?"全部":closeTab==="pending"||closeTab==="待激活"?"待激活":"生效中";
+  const tabPos=await page.evaluate((label)=>{
+    const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
+    const el=[...document.querySelectorAll("[class*=TAB_capsuleLabel], [role=tab], button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)===label)[0];
+    if(!el)return null; const r=el.getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+  },tabLabel);
+  if(tabPos){await page.mouse.click(tabPos.x,tabPos.y);await page.waitForTimeout(1800);}
+  let closedCount=0;
+  for(let round=0;round<20;round++){
+    const hit=await page.evaluate(({couponName,typeAliases,face})=>{
+      const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
+      const rows=[...document.querySelectorAll("tr")].filter(r=>r.offsetParent&&t(r).includes(couponName)).filter(r=>{
+        const s=t(r);
+        if(typeAliases.length&&!typeAliases.some(a=>s.includes(a)))return false;
+        if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
+        return !![...r.querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
+      });
+      if(!rows.length)return {count:0};
+      const r=rows[0];
+      const b=[...r.querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
+      const rr=b.getBoundingClientRect();
+      return {count:rows.length,x:Math.round(rr.x+rr.width/2),y:Math.round(rr.y+rr.height/2),rowText:t(r).slice(0,300)};
+    },{couponName,typeAliases,face});
+    if(!hit||hit.count===0)break;
+    await page.mouse.click(hit.x,hit.y);
+    await page.waitForTimeout(1200);
+    const clickExact=async(label)=>{
+      const ok=await page.evaluate((label)=>{
+        const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
+        const b=[...document.querySelectorAll("button,div,span")].filter(x=>x.offsetParent&&t(x)===label).pop();
+        if(!b)return null; const r=b.getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+      },label);
+      if(!ok)return false; await page.mouse.click(ok.x,ok.y); await page.waitForTimeout(1200); return true;
+    };
+    const first=await clickExact("确认结束")||await clickExact("确认");
+    if(first) await clickExact("直接结束");
+    await page.waitForTimeout(1000);
+    const text=(await page.evaluate(()=>document.body.innerText||"")).slice(-700);
+    if(/成功停止该优惠券发行/.test(text)) closedCount++;
+    else return {status:"failed",error:"coupon_close_all_not_confirmed",couponName,closedCount,text};
+    await page.waitForTimeout(800);
+  }
+  return {status:"done",couponName,closedCount,closed:true,remaining:0};
+}
+
 async function couponClose(){
   const goodsId=String((JOB.goodsIds||[])[0]||JOB.goodsId||"");
   const couponName=String(JOB.couponName||"").trim();
@@ -1473,6 +1524,7 @@ async function couponClose(){
   const type=String(JOB.couponType||"").trim();
   const typeAliases=type?(type==="店铺关注券"?["店铺关注券","关注店铺商品券","关注店铺券"]:[type]):[];
   const face=JOB.faceAmount!=null&&JOB.faceAmount!==""?Number(JOB.faceAmount):null;
+  if(JOB.closeAll===true) return await couponCloseAll(goodsId,typeAliases,face,couponName);
   const cur=await page.url().catch(()=>"");
   if(!String(cur).includes("/tool/coupon?tab=1")){
     await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
