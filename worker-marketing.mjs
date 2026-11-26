@@ -1586,6 +1586,20 @@ async function couponCloseAllRows(couponName,typeAliases,face){
   },{couponName,typeAliases,face});
 }
 
+async function couponCloseAllPages(couponName,typeAliases,face){
+  const out=[];
+  for(let n=1;n<=100;n++){
+    if(n>1){
+      const ok=await couponClickPage(n);
+      if(!ok)break;
+      await page.waitForTimeout(600);
+    }
+    const rows=await couponCloseAllRows(couponName,typeAliases,face);
+    if(rows.length)out.push({page:n,rows});
+  }
+  return out;
+}
+
 async function couponCloseAll(goodsId,typeAliases,face,couponName){
   if(!couponName)throw new Error("coupon_close_all_name_required");
   await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
@@ -1599,15 +1613,20 @@ async function couponCloseAll(goodsId,typeAliases,face,couponName){
     if(!el)return null; const r=el.getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
   },tabLabel);
   if(tabPos){await page.mouse.click(tabPos.x,tabPos.y);await page.waitForTimeout(1800);}
-  const rows=await couponCloseAllRows(couponName,typeAliases,face);
+  const pageRows=await couponCloseAllPages(couponName,typeAliases,face);
+  const rows=pageRows.flatMap(x=>x.rows);
   if(JOB.expectedCount!=null&&rows.length!==JOB.expectedCount){
     return {status:"needs_user_input",error:"coupon_close_count_mismatch",expected:JOB.expectedCount,actual:rows.length,rows,couponName};
   }
   if(JOB.confirmClose!==true){
-    return {status:"preview",couponName,rows,count:rows.length,wouldClose:true,note:"confirmClose!=true: 未结束"};
+    return {status:"preview",couponName,rows,count:rows.length,pages:pageRows.map(x=>({page:x.page,count:x.rows.length})),wouldClose:true,note:"confirmClose!=true: 未结束"};
   }
   let closedCount=0;
-  for(let round=0;round<100;round++){
+  for(const pr of pageRows){
+    const pageOk=await couponClickPage(pr.page);
+    if(!pageOk)continue;
+    await page.waitForTimeout(600);
+    for(let round=0;round<100;round++){
     const hit=await page.evaluate(({couponName,typeAliases,face})=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
       const rows=[...document.querySelectorAll("tr")].filter(r=>{if(!r.offsetParent)return false;const cells=[...r.querySelectorAll("td")].map(t);return (cells[0]||"")===couponName;}).filter(r=>{
@@ -1640,6 +1659,7 @@ async function couponCloseAll(goodsId,typeAliases,face,couponName){
     if(/成功停止该优惠券发行/.test(text)) closedCount++;
     else return {status:"failed",error:"coupon_close_all_not_confirmed",couponName,closedCount,text};
     await page.waitForTimeout(800);
+    }
   }
   return {status:"done",couponName,closedCount,closed:true,remaining:0};
 }

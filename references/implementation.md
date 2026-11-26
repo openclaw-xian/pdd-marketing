@@ -304,3 +304,8 @@ node run.mjs coupon-close.json          # 结束
 
 - 分页 100；audit 后续页签 couponNoReload。
 - list claimStart/claimEnd/useTime；全店 display_name/custom_name_ignored；items 重复拦截。
+
+## 27. 0.9.30 补充
+
+- closeAll 逐页扫描 1～100 页，expectedCount 按总行数校验，逐页关闭。
+- 实测多商品 2 行 closedCount=2，active 0 hits。
