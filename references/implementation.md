@@ -260,3 +260,8 @@ node run.mjs coupon-close.json          # 结束
 - 全店关注券补 `couponSetStoreWideFields`：按「券面额」「发行张数」标签填顶层输入框。
 - 全店券显示名固定「全店商品店铺关注券」。
 - confirmLowPrice 按钮含子元素，leaf-exact 找不到；改 button/[role=button] includes 后仍误报，待修。
+
+## 18. 0.9.21 补充
+
+- 低价弹窗解析 warnings[]；默认 needs_user_input，不自动确认。
+- confirmLowPrice 自动点击仍不稳定，按钮定位待修。

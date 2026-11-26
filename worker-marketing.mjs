@@ -1393,37 +1393,50 @@ async function couponCreate(){
   }
   if(!result||!result.created){
     const body=result?result.text:"";
-    const lowPriceButton=await page.evaluate(()=>{
-      const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
-      return !![...document.querySelectorAll("button,[role=button]")].filter(x=>x.offsetParent&&t(x).includes("确认低价创建"))[0];
+    const warnings=await page.evaluate(()=>{
+      const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
+      const vis=(x)=>{const r=x.getBoundingClientRect();return r.width>0&&r.height>0;};
+      const modals=[...document.querySelectorAll("div")].filter(x=>vis(x)&&t(x).includes("低价风险预警")&&t(x).includes("券后价"));
+      modals.sort((a,b)=>{const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();return ra.width*ra.height-rb.width*rb.height;});
+      const m=modals[0];
+      if(!m)return [];
+      return [...m.querySelectorAll("tr")].filter(vis).map(r=>[...r.querySelectorAll("td")].map(x=>t(x))).filter(c=>c.length>=4&&c[0]!=="商品信息").map(c=>({goods:c[0],price:c[1],activityPrice:c[2],couponPrice:c[3],reason:c[4]||""}));
     });
-    if(lowPriceButton){
+    const marked=await page.evaluate(()=>{
+      const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
+      const vis=(x)=>{const r=x.getBoundingClientRect();return r.width>0&&r.height>0;};
+      const els=[...document.querySelectorAll("button,div,span,a")].filter(x=>vis(x)&&t(x).includes("确认低价创建"));
+      if(!els.length)return null;
+      els.sort((a,b)=>{const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();return ra.width*ra.height-rb.width*rb.height;});
+      const el=els[0];
+      const target=el.closest("button")||el.closest("[role=button]")||el;
+      target.scrollIntoView({block:"center",inline:"center"});
+      const r=target.getBoundingClientRect();
+      target.setAttribute("data-ego-lowprice","1");
+      return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),tag:target.tagName,cls:String(target.className||"").slice(0,120),html:target.outerHTML.slice(0,300)};
+    });
+    if(marked){
       if(JOB.confirmLowPrice===true){
-        const pos=await page.evaluate(()=>{
-          const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
-          const b=[...document.querySelectorAll("button,[role=button]")].filter(x=>x.offsetParent&&t(x).includes("确认低价创建"))[0];
-          if(!b)return null;
-          const r=b.getBoundingClientRect();
-          return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
-        });
-        if(pos){
-          await page.mouse.click(pos.x,pos.y);
-          await page.waitForTimeout(2000);
-          const afterUrl=await page.url().catch(()=>"");
-          const after=await page.evaluate(()=>({text:(document.body.innerText||"").slice(-1500),created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")}));
-          if(after.created){ result=after; }
-          else if(/goods-price-management|createResult/.test(afterUrl)){
-            result={created:true, text:after.text, syncTool:after.syncTool, low_price_confirmed:true, url:afterUrl};
-          }
-          else return {status:"failed", error:"coupon_low_price_confirm_failed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:after.text};
-        } else return {status:"failed", error:"coupon_low_price_button_missing", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
+        await page.mouse.click(marked.x,marked.y);
+        let after=null, afterUrl="";
+        for(let i=0;i<10;i++){
+          await page.waitForTimeout(1000);
+          afterUrl=await page.url().catch(()=>"");
+          after=await page.evaluate(()=>({text:(document.body.innerText||"").slice(-1500),created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")}));
+          if(after.created||/goods-price-management|createResult/.test(afterUrl))break;
+        }
+        if(after&&(after.created||/goods-price-management|createResult/.test(afterUrl))){
+          result={created:true,text:after.text,syncTool:after.syncTool,low_price_confirmed:true,url:afterUrl,warnings};
+        } else {
+          return {status:"failed",error:"coupon_low_price_confirm_failed",warnings,low_price_button:marked,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:after.text};
+        }
       } else {
-        return {status:"needs_user_input", error:"coupon_low_price_warning", message:"平台提示低价风险，未提交；请确认是否继续或修改商品", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
+        return {status:"needs_user_input",error:"coupon_low_price_warning",message:"平台提示低价风险，未提交；请确认以下商品是否继续",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
       }
     }
-    return {status:"failed", error:"coupon_create_not_confirmed", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, text:body};
+    return {status:"failed",error:"coupon_create_not_confirmed",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
   }
-  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, redirect_url:result.url||null, text:result.text};
+  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, low_price_warnings:result.warnings||[], redirect_url:result.url||null, text:result.text};
   if(JOB.verify===true){
     const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
     JOB.couponTab="all"; JOB.couponAllPages=true;
