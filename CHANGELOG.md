@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.24 — 2026-11-26
+
+- 低价按钮 DOM 定位：`button[data-testid="beast-core-modal-ok-button"]`，`disabled=false`，无 checkbox，按钮中心 `elementFromPoint` 是内部 `SPAN`。
+- 尝试鼠标点击 / JS `.click()` / 可见按钮筛选，仍未触发创建或跳转；手动点击可创建。疑似需要可信用户手势或存在二次确认。
+- 修复 `lowPriceDom` 未定义错误；`warnings[]` 全量汇报保持。
+- 测试券已 `closeAll` 结束。
+
 ## 0.9.23 — 2026-11-26
 
 - 低价弹窗新增 `lowPriceDom` 调试信息：真实按钮为 `button[data-testid="beast-core-modal-ok-button"]`，内部 span 文本「确认低价创建」。

@@ -275,3 +275,8 @@ node run.mjs coupon-close.json          # 结束
 
 - lowPriceDom 调试：按钮 button[data-testid="beast-core-modal-ok-button"]，内部 span「确认低价创建」。
 - mouse/JS click 均未触发创建/跳转，待查前置勾选或二次确认。
+
+## 21. 0.9.24 补充
+
+- 低价按钮 button[data-testid="beast-core-modal-ok-button"]，disabled=false，无 checkbox，中心 elementFromPoint=SPAN。
+- mouse/JS/可见按钮点击均未触发创建；手动可创建，疑似可信手势/二次确认。
