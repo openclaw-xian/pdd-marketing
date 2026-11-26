@@ -1406,7 +1406,7 @@ async function couponList(){
   const notices=await dismissCouponNotices();
   const tab=String(JOB.couponTab||"").trim();
   if(tab){
-    const label=tab==="ended"||tab==="已结束"?"已结束":tab==="active"||tab==="生效中"?"生效中":tab==="all"||tab==="全部"?"全部":"";
+    const label=tab==="ended"||tab==="已结束"?"已结束":tab==="active"||tab==="生效中"?"生效中":tab==="all"||tab==="全部"?"全部":tab==="pending"||tab==="待激活"?"待激活":"";
     if(label){
       const pos=await page.evaluate((label)=>{
         const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
@@ -1431,12 +1431,19 @@ async function couponList(){
     const coupons=rows.filter(r=>/商品立减券|店铺关注券|关注店铺商品券|关注店铺券|惊喜券|场景专属券/.test(t(r))).map(r=>{
       const text=t(r);
       const cells=[...r.querySelectorAll("td")].map(x=>t(x).slice(0,120));
+      const issueM=text.match(/([0-9]+) *[(]已领取 *([0-9]+)张，剩余 *([0-9]+)张[)]/);
+      const perM=text.match(/[)] *([0-9]+) +([^ ]+) +(领取中|已结束|待激活|已失效|审核中)/);
       return {
         text:text.slice(0,300),
         cells,
         type:(text.match(/商品立减券|店铺关注券|关注店铺商品券|关注店铺券|惊喜券|场景专属券/)||[])[0]||null,
         goodsId:(text.match(/ID:\s*(\d+)/)||[])[1]||null,
         face:(text.match(/([0-9.]+)元/)||[])[1]||null,
+        issue:issueM?Number(issueM[1]):null,
+        claimed:issueM?Number(issueM[2]):null,
+        remaining:issueM?Number(issueM[3]):null,
+        perPerson:perM?Number(perM[1]):null,
+        scope:perM?perM[2]:null,
         status:(text.match(/领取中|已结束|待激活|已失效|审核中/)||[])[0]||null,
         buttons:[...r.querySelectorAll("button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&["结束","增加发行量","数据"].includes(t(x))).map(x=>t(x))
       };
@@ -1612,7 +1619,7 @@ async function couponAudit() {
   const list = {};
   const prevAllPages = JOB.couponAllPages;
   JOB.couponAllPages = true;
-  for (const tab of ["active", "ended", "all"]) {
+  for (const tab of ["active", "ended", "pending", "all"]) {
     JOB.couponTab = tab;
     const d = await couponList();
     list[tab] = { count: d.count, pages: d.pages, statusCounts: d.statusCounts, coupons: d.coupons.map(c => c.text) };

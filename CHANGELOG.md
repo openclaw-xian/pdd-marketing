@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.18 — 2026-11-26
+
+- `coupon-list` 结构化字段补全：`issue` / `claimed` / `remaining` / `perPerson` / `scope`；实测 6 元关注券 issue=100、claimed=0、remaining=100、perPerson=1、scope=全场景通用。
+- `coupon-list` 支持 `pending` / 待激活页签；`coupon-audit` 列表增加 pending。
+
 ## 0.9.17 — 2026-11-26
 
 - `coupon-list` 每次读取前强制重新进列表，避免筛选/页签残留；实测 active 27 张 / 3 页（此前偶发只读 9 张 / 1 页）。

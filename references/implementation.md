@@ -243,3 +243,8 @@ node run.mjs coupon-close.json          # 结束
 - `couponList` 每次强制 `goto` 列表，重置筛选/页签。
 - `couponAudit` 支持多个 `goodsIds`，输出 `types[type].products[goodsId]`。
 - `closeAll` 券名按首列完全匹配；`confirmClose:false` 返回 preview 行清单。
+
+## 15. 0.9.18 补充
+
+- `couponList` 结构化字段增加 issue/claimed/remaining/perPerson/scope。
+- `couponTab` 增加 pending/待激活；audit 列表含 pending。

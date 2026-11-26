@@ -244,7 +244,7 @@
 
 禁止点「暂时结束并到期恢复」。
 
-## 15. 代码模式（0.9.17）
+## 15. 代码模式（0.9.18）
 
 `run.mjs` 已封装：
 
@@ -326,8 +326,8 @@
 
 ### coupon-list
 
-- 支持 `couponTab`：`active` / `ended` / `all`（也接受中文「生效中 / 已结束 / 全部」）
-- `couponAllPages:true` 逐页读取（1～20 页），返回 `pages`、`statusCounts`、结构化 `type/goodsId/face/status/cells`；实测「全部」153 张 / 17 页
+- 支持 `couponTab`：`active` / `ended` / `pending` / `all`（也接受中文「生效中 / 已结束 / 待激活 / 全部」）
+- `couponAllPages:true` 逐页读取（1～20 页），返回 `pages`、`statusCounts`、结构化 `type/goodsId/face/issue/claimed/remaining/perPerson/scope/status/cells`；实测「全部」153 张 / 17 页
 - 读取前自动关闭右上角「新消息」弹窗
 - 轮询等待表格行稳定，避免刚创建/刚结束时读到旧数据
 - 返回 `count`、`coupons`、`tab`、`notices`
