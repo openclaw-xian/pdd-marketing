@@ -79,6 +79,8 @@ async function runOne(store, i) {
     confirmClose: CFG.confirmClose === true,
     confirmLowPrice: CFG.confirmLowPrice === true,
     closeAll: CFG.closeAll === true,
+    expectedCount: CFG.expectedCount != null ? Number(CFG.expectedCount) : null,
+    verifyAfterSec: CFG.verifyAfterSec != null ? Number(CFG.verifyAfterSec) : 0,
     selectOnly: CFG.selectOnly === true,
     expandSkus: CFG.expandSkus === true,
     confirmSubmit: CFG.confirmSubmit === true,

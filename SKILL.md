@@ -492,7 +492,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 出现额外设置：立即结束并重做。
 
-### 代码模式（0.9.25）
+### 代码模式（0.9.26）
 
 - `coupon-create` 默认只预览；**必须显式 `confirmCreate:true` 才真正创建**
 - `dryRun:true` 返回 `formDefaults` / `validRange`，用于创建前和用户对齐

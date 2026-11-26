@@ -285,3 +285,8 @@ node run.mjs coupon-close.json          # 结束
 
 - 低价确认点击后券会创建；不再误报 coupon_create_not_confirmed。
 - 有 warnings 时返回 success + low_price_confirmed + pending_verification；verify 跳过，由 coupon-list 回读。
+
+## 23. 0.9.26 补充
+
+- closeAll expectedCount 不匹配返回 needs_user_input，不关闭。
+- audit options；verifyAfterSec；extras_requested/extras_verified。

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.26 — 2026-11-26
+
+- `closeAll` 新增 `expectedCount`：实际行数不匹配返回 `needs_user_input` + `coupon_close_count_mismatch`，不执行关闭；实测 expected=2 / actual=1 被拦截。
+- `coupon-audit` 增加 `options`：perPerson / useDays / claimRange / followScope / extraDiscount / surpriseExtraDiscount。
+- 新增 `verifyAfterSec`：低价确认后未在列表找到时，等待 N 秒自动重读列表。
+- 成功结果增加 `extras_requested` / `extras_verified`；额外优惠实际设置需价格管理核验时标 false。
+
 ## 0.9.25 — 2026-11-26
 
 - 确认低价创建点击实际成功，券会创建；代码不再因未捕获跳转而误报 `coupon_create_not_confirmed`。

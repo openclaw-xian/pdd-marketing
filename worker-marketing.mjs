@@ -1437,6 +1437,16 @@ async function couponCreate(){
           foundRow=list.coupons.find(c=>c.text.includes(name))||list.coupons.find(c=>c.text.includes(faceText)&&(storeWide?c.text.includes("全店商品"):true));
           if(foundRow)break;
         }
+        if(!foundRow&&JOB.verifyAfterSec>0){
+          await page.waitForTimeout(JOB.verifyAfterSec*1000);
+          const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
+          JOB.couponTab="all"; JOB.couponAllPages=true;
+          let list=null;
+          try{ list=await couponList(); } finally { JOB.couponTab=prevTab; JOB.couponAllPages=prevAll; }
+          const name=nameApplied||(formDefaults&&formDefaults.couponName)||"";
+          const faceText=face.toFixed(2)+"元";
+          foundRow=list.coupons.find(c=>c.text.includes(name))||list.coupons.find(c=>c.text.includes(faceText)&&(storeWide?c.text.includes("全店商品"):true));
+        }
         if(foundRow){
           result={created:true,text:"",syncTool:false,low_price_confirmed:true,warnings,verifyRow:foundRow.text};
         } else {
@@ -1453,7 +1463,7 @@ async function couponCreate(){
           return {status:"failed",error:"coupon_create_not_confirmed",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
     }
   }
-  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, pending_verification:result.pending_verification===true, verified:result.pending_verification===true?false:undefined, low_price_warnings:result.warnings||[], redirect_url:result.url||null, text:result.text};
+  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, pending_verification:result.pending_verification===true, verified:result.pending_verification===true?false:undefined, low_price_warnings:result.warnings||[], extras_requested:(JOB.extraDiscount>0||JOB.surpriseExtraDiscount>0), extras_verified:result.pending_verification===true?false:((JOB.extraDiscount>0||JOB.surpriseExtraDiscount>0)?/全站营销额外设置|额外优惠/.test(result.text||""):true), redirect_url:result.url||null, text:result.text};
   if(JOB.verify===true && result.pending_verification!==true){
     const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
     JOB.couponTab="all"; JOB.couponAllPages=true;
@@ -1553,6 +1563,21 @@ async function couponList(){
   return {count:all.length,coupons:all,pages,statusCounts,tab:tab||"current",notices};
 }
 
+async function couponCloseAllRows(couponName,typeAliases,face){
+  return page.evaluate(({couponName,typeAliases,face})=>{
+    const t=(x)=>x?String(x.innerText||x.textContent||"").trim():"";
+    return [...document.querySelectorAll("tr")].filter(r=>{
+      if(!r.offsetParent)return false;
+      const cells=[...r.querySelectorAll("td")].map(t);
+      if((cells[0]||"")!==couponName)return false;
+      const s=t(r);
+      if(typeAliases.length&&!typeAliases.some(a=>s.includes(a)))return false;
+      if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
+      return !![...r.querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
+    }).map(r=>t(r).slice(0,300));
+  },{couponName,typeAliases,face});
+}
+
 async function couponCloseAll(goodsId,typeAliases,face,couponName){
   if(!couponName)throw new Error("coupon_close_all_name_required");
   await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
@@ -1566,19 +1591,11 @@ async function couponCloseAll(goodsId,typeAliases,face,couponName){
     if(!el)return null; const r=el.getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
   },tabLabel);
   if(tabPos){await page.mouse.click(tabPos.x,tabPos.y);await page.waitForTimeout(1800);}
+  const rows=await couponCloseAllRows(couponName,typeAliases,face);
+  if(JOB.expectedCount!=null&&rows.length!==JOB.expectedCount){
+    return {status:"needs_user_input",error:"coupon_close_count_mismatch",expected:JOB.expectedCount,actual:rows.length,rows,couponName};
+  }
   if(JOB.confirmClose!==true){
-    const rows=await page.evaluate(({couponName,typeAliases,face})=>{
-      const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
-      return [...document.querySelectorAll("tr")].filter(r=>{
-        if(!r.offsetParent)return false;
-        const cells=[...r.querySelectorAll("td")].map(t);
-        if((cells[0]||"")!==couponName)return false;
-        const s=t(r);
-        if(typeAliases.length&&!typeAliases.some(a=>s.includes(a)))return false;
-        if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
-        return !![...r.querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
-      }).map(r=>t(r).slice(0,300));
-    },{couponName,typeAliases,face});
     return {status:"preview",couponName,rows,count:rows.length,wouldClose:true,note:"confirmClose!=true: 未结束"};
   }
   let closedCount=0;
@@ -1740,6 +1757,16 @@ async function couponAudit() {
           }
         }
         item.products[gid] = { form, rangeTests };
+        if(!item.options){
+          item.options={
+            perPerson:form.perPersonDefault?["1","2","3"]:null,
+            useDays:form.useDaysDefault?{default:form.useDaysDefault,range:"7~90"}:null,
+            claimRange:form.claimRange,
+            followScope:type==="店铺关注券"?(form.productRow?"products":"unknown"):null,
+            extraDiscount:form.extraDiscount,
+            surpriseExtraDiscount:form.surpriseExtraDiscount
+          };
+        }
         if (!item.form) { item.form = form; item.rangeTests = rangeTests; }
       }
       item.status = "done";
