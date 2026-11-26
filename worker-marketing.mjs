@@ -1408,22 +1408,15 @@ async function couponCreate(){
         return {goods,goodsId:id,goodsName:name,price:c[1],activityPrice:c[2],couponPrice,reason:c[4]||""};
       });
     });
-    const marked=await page.evaluate(()=>{
-      const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");
-      const vis=(x)=>{const r=x.getBoundingClientRect();return r.width>0&&r.height>0;};
-      const els=[...document.querySelectorAll("button,div,span,a")].filter(x=>vis(x)&&t(x).includes("确认低价创建"));
-      if(!els.length)return null;
-      els.sort((a,b)=>{const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();return ra.width*ra.height-rb.width*rb.height;});
-      const el=els[0];
-      const target=el.closest("button")||el.closest("[role=button]")||el;
-      target.scrollIntoView({block:"center",inline:"center"});
-      const r=target.getBoundingClientRect();
-      target.setAttribute("data-ego-lowprice","1");
-      return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),tag:target.tagName,cls:String(target.className||"").slice(0,120),html:target.outerHTML.slice(0,300)};
-    });
+    let marked=false;
+    for(let i=0;i<20;i++){
+      marked=await page.evaluate(()=>!!document.querySelector('[data-testid="beast-core-modal-ok-button"]'));
+      if(marked)break;
+      await page.waitForTimeout(500);
+    }
     if(marked){
       if(JOB.confirmLowPrice===true){
-        await page.mouse.click(marked.x,marked.y);
+        await page.evaluate(()=>{const b=document.querySelector('[data-testid="beast-core-modal-ok-button"]');if(b)b.click();});
         let after=null, afterUrl="";
         for(let i=0;i<10;i++){
           await page.waitForTimeout(1000);
@@ -1438,7 +1431,7 @@ async function couponCreate(){
         }
       } else {
         const warningsSummary=warnings.map((w,i)=>`${i+1}. ${w.goodsName}（ID ${w.goodsId||"-"}）拼单价 ${w.price} / 活动价 ${w.activityPrice} / 券后价 ${w.couponPrice} / ${w.reason}`).join("；");
-        return {status:"needs_user_input",error:"coupon_low_price_warning",message:`平台提示低价风险，未提交。共 ${warnings.length} 个商品：${warningsSummary}。请确认是否继续`,warningsSummary,warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
+        return {status:"needs_user_input",error:"coupon_low_price_warning",message:`平台提示低价风险，未提交。共 ${warnings.length} 个商品：${warningsSummary}。请确认是否继续`,warningsSummary,warnings,lowPriceDom,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
       }
     }
     return {status:"failed",error:"coupon_create_not_confirmed",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};

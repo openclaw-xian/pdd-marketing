@@ -270,3 +270,8 @@ node run.mjs coupon-close.json          # 结束
 
 - warnings[] 增加 goodsId/goodsName，couponPrice 清理「查看优惠叠加」。
 - needs_user_input.message 汇总全部低价商品明细。
+
+## 20. 0.9.23 补充
+
+- lowPriceDom 调试：按钮 button[data-testid="beast-core-modal-ok-button"]，内部 span「确认低价创建」。
+- mouse/JS click 均未触发创建/跳转，待查前置勾选或二次确认。

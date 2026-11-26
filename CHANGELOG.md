@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.23 — 2026-11-26
+
+- 低价弹窗新增 `lowPriceDom` 调试信息：真实按钮为 `button[data-testid="beast-core-modal-ok-button"]`，内部 span 文本「确认低价创建」。
+- `confirmLowPrice` 尝试鼠标点击 / JS `.click()` 仍未触发创建或跳转；需要确认是否有前置勾选或二次确认。
+- `warnings[]` 全量汇报保持（商品名/ID/拼单价/活动价/券后价/原因）。
+- 测试券已 `closeAll` 结束。
+
 ## 0.9.22 — 2026-11-26
 
 - 低价风险回读补全 `goodsId` / `goodsName`，`couponPrice` 清理「查看优惠叠加」。
