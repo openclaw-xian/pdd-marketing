@@ -144,6 +144,537 @@ async function activityList() {
   }
   return {count:all.length,pages:Math.ceil(all.length/19),activities:all};
 }
+async function storeActivityClickText(text, exact = true) {
+  const pos = await page.evaluate(({ text, exact }) => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    let els = [...document.querySelectorAll("label,div,span,button,a")].filter(x => vis(x) && (exact ? t(x) === text : t(x).includes(text)));
+    if (!els.length) return null;
+    els.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return ra.width * ra.height - rb.width * rb.height; });
+    const el = els[0];
+    el.scrollIntoView({ block: "center", inline: "center" });
+    const r = el.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), text: t(el).slice(0, 80), cls: String(el.className || "").slice(0, 120) };
+  }, { text, exact });
+  if (!pos) return null;
+  await page.mouse.click(pos.x, pos.y);
+  await page.waitForTimeout(800);
+  return pos;
+}
+
+async function storeActivitySetName(name) {
+  const pos = await page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && /25个字以内/.test(x.placeholder || ""));
+    if (!i) return null;
+    const r = i.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), value: i.value };
+  });
+  if (!pos) throw new Error("store_activity_name_input_missing");
+  if (String(name).length > 25) throw new Error("store_activity_name_too_long:" + String(name).length);
+  await page.mouse.click(pos.x, pos.y);
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(String(name));
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && /25个字以内/.test(x.placeholder || ""));
+    return i ? i.value : null;
+  });
+  if (String(after) !== String(name)) throw new Error("store_activity_name_not_applied:" + after);
+  return { value: after };
+}
+
+async function storeActivityRadioState(text) {
+  return page.evaluate((text) => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const els = [...document.querySelectorAll("label,div,span")].filter(x => vis(x) && t(x) === text);
+    if (!els.length) return null;
+    els.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return ra.width * ra.height - rb.width * rb.height; });
+    const el = els[0];
+    const outer = el.closest("[class*=RD_outerWrapper]") || el.parentElement;
+    return { cls: String(outer.className || ""), active: /RD_active/.test(String(outer.className || "")) };
+  }, text);
+}
+
+async function storeActivitySetRadio(text) {
+  const pos = await storeActivityClickText(text, true);
+  if (!pos) throw new Error("store_activity_option_missing:" + text);
+  await page.waitForTimeout(500);
+  const st = await storeActivityRadioState(text);
+  if (!st || !st.active) throw new Error("store_activity_option_not_selected:" + text);
+  return st;
+}
+
+async function storeActivitySelectProducts(goodsIds) {
+  if (!goodsIds.length) throw new Error("store_activity_items_missing");
+  if (goodsIds.length > 30) throw new Error("store_activity_items_over_30:" + goodsIds.length);
+  const open = await storeActivityClickText("选择商品", true);
+  if (!open) throw new Error("store_activity_select_button_missing");
+  await page.waitForTimeout(2000);
+  const box = await page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && /输入商品名称或ID/.test(x.placeholder || ""));
+    if (!i) return null;
+    const r = i.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+  });
+  if (!box) throw new Error("store_activity_picker_search_missing");
+  await page.mouse.click(box.x, box.y);
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(goodsIds.join(","));
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(2500);
+  for (const id of goodsIds) {
+    const row = await page.evaluate((id) => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+      const tr = [...document.querySelectorAll("tr")].find(x => x.offsetParent && new RegExp("ID: *" + id).test(t(x)));
+      if (!tr) return null;
+      const i = tr.querySelector("input[type=checkbox]");
+      if (!i) return null;
+      const r = i.getBoundingClientRect();
+      return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), checked: i.checked, disabled: i.disabled };
+    }, id);
+    if (!row) throw new Error("store_activity_product_not_found:" + id);
+    if (row.disabled) throw new Error("store_activity_product_not_selectable:" + id);
+    if (!row.checked) {
+      await page.mouse.click(row.x, row.y);
+      await page.waitForTimeout(400);
+    }
+  }
+  const confirm = await storeActivityClickText("确认选择", true);
+  if (!confirm) throw new Error("store_activity_confirm_select_missing");
+  await page.waitForTimeout(2500);
+  const count = await page.evaluate(() => {
+    const m = (document.body.innerText || "").match(/已选择\s*(\d+)\s*个商品/);
+    return m ? Number(m[1]) : null;
+  });
+  if (count != null && count !== goodsIds.length) throw new Error("store_activity_selected_count_mismatch:" + count);
+  return { selectedCount: count };
+}
+
+async function storeActivityRowInfo(goodsId) {
+  return page.evaluate((id) => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const tr = [...document.querySelectorAll("tr")].find(x => x.offsetParent && new RegExp("ID: *" + id).test(t(x)));
+    if (!tr) return { ok: false, error: "row_missing:" + id };
+    const inputs = [...tr.querySelectorAll("input")].filter(vis).map((i, idx) => {
+      const r = i.getBoundingClientRect();
+      return { idx, placeholder: i.placeholder, value: i.value, readOnly: i.readOnly, disabled: i.disabled, cls: String(i.className || "").slice(0, 80), html: i.outerHTML.slice(0, 240), x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+    });
+    const text = t(tr);
+    const price = (text.match(/拼单价: *¥([0-9.]+～[0-9.]+)/) || [])[1] || null;
+    const activityPrice = (text.match(/活动价: *¥([0-9.]+～[0-9.]+)/) || [])[1] || null;
+    const rangeInput = inputs.find(i => /[0-9.]+～[0-9.]+/.test(i.placeholder || ""));
+    return { ok: true, goodsId: id, text: text.slice(0, 500), inputs, price, activityPrice, discountRange: rangeInput ? rangeInput.placeholder : null };
+  }, goodsId);
+}
+
+async function storeActivitySetRowField(goodsId, field, value) {
+  const info = await storeActivityRowInfo(goodsId);
+  if (!info.ok) throw new Error(info.error);
+  const discountByLabel = info.inputs.find(i => /请输入折扣/.test(i.placeholder || ""));
+  const discountByRange = info.inputs.find(i => /^[0-9.]+～[0-9.]+$/.test(i.placeholder || ""));
+  const inp = field === "discount"
+    ? (discountByLabel || discountByRange)
+    : info.inputs.find(i => /^1~[0-9]+/.test(i.placeholder || ""));
+  if (!inp) throw new Error("store_activity_row_field_missing:" + field + ":" + goodsId);
+  if (field === "discount" && info.discountRange) {
+    const m = String(info.discountRange).match(/([0-9.]+)～([0-9.]+)/);
+    if (m && (Number(value) < Number(m[1]) || Number(value) > Number(m[2]))) {
+      throw new Error("store_activity_discount_out_of_range:" + value + ":" + info.discountRange);
+    }
+  }
+  const marked = await page.evaluate(({ goodsId, field }) => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const tr = [...document.querySelectorAll("tr")].find(x => x.offsetParent && new RegExp("ID: *" + goodsId).test(t(x)));
+    if (!tr) return null;
+    const inputs = [...tr.querySelectorAll("input")].filter(x => x.offsetParent);
+    const target = field === "discount"
+      ? (inputs.find(i => /请输入折扣/.test(i.placeholder || "")) || inputs.find(i => /^[0-9.]+～[0-9.]+$/.test(i.placeholder || "")))
+      : inputs.find(i => /^1~[0-9]+/.test(i.placeholder || ""));
+    if (!target) return null;
+    target.setAttribute("data-ego-store-field", "1");
+    return { placeholder: target.placeholder, value: target.value };
+  }, { goodsId, field });
+  if (!marked) throw new Error("store_activity_row_field_missing:" + field + ":" + goodsId);
+  try { await page.click('css=[data-ego-store-field="1"]', { label: field }); }
+  catch (e) { await page.mouse.click(inp.x, inp.y); }
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(String(value));
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(700);
+  let after = await storeActivityRowInfo(goodsId);
+  let got = field === "discount"
+    ? (after.inputs.find(i => /请输入折扣/.test(i.placeholder || "")) || after.inputs.find(i => /^[0-9.]+～[0-9.]+$/.test(i.placeholder || "")))
+    : after.inputs.find(i => /^1~[0-9]+/.test(i.placeholder || ""));
+  if (!got || String(got.value) !== String(value)) {
+    await page.evaluate(({ goodsId, field, value }) => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+      const tr = [...document.querySelectorAll("tr")].find(x => x.offsetParent && new RegExp("ID: *" + goodsId).test(t(x)));
+      if (!tr) return;
+      const inputs = [...tr.querySelectorAll("input")].filter(x => x.offsetParent);
+      const target = field === "discount"
+        ? (inputs.find(i => /请输入折扣/.test(i.placeholder || "")) || inputs.find(i => /^[0-9.]+～[0-9.]+$/.test(i.placeholder || "")))
+        : inputs.find(i => /^1~[0-9]+/.test(i.placeholder || ""));
+      if (!target) return;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+      setter.call(target, String(value));
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+      target.dispatchEvent(new Event("change", { bubbles: true }));
+      target.dispatchEvent(new Event("blur", { bubbles: true }));
+    }, { goodsId, field, value: String(value) });
+    await page.waitForTimeout(700);
+    after = await storeActivityRowInfo(goodsId);
+    got = field === "discount"
+      ? (after.inputs.find(i => /请输入折扣/.test(i.placeholder || "")) || after.inputs.find(i => /^[0-9.]+～[0-9.]+$/.test(i.placeholder || "")))
+      : after.inputs.find(i => /^1~[0-9]+/.test(i.placeholder || ""));
+  }
+  if (!got || String(got.value) !== String(value)) throw new Error("store_activity_row_field_not_applied:" + field + ":" + goodsId + ":" + JSON.stringify({ before: info.inputs, after: after.inputs }));
+  return { field, value: got.value };
+}
+
+async function storeActivityCheckExternalNote() {
+  const read = () => page.evaluate(() => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const labels = [...document.querySelectorAll("label,div,span")].filter(x => vis(x) && t(x).includes("我已阅读并同意"));
+    for (const el of labels) {
+      const cb = el.querySelector("input[type=checkbox]") || el.parentElement.querySelector("input[type=checkbox]") || (el.closest("label") ? el.closest("label").querySelector("input[type=checkbox]") : null);
+      if (cb) {
+        const r = cb.getBoundingClientRect();
+        return { found: true, checked: cb.checked, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      }
+    }
+    const el = labels.sort((a, b) => {
+      const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      return ra.width * ra.height - rb.width * rb.height;
+    })[0];
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { found: true, checked: null, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+  });
+  let info = await read();
+  if (!info) throw new Error("store_activity_external_note_missing");
+  if (info.checked !== true) {
+    await page.mouse.click(info.x, info.y);
+    await page.waitForTimeout(700);
+    info = await read();
+  }
+  if (info && info.checked === true) return { checked: true };
+  const checkedClass = await page.evaluate(() => {
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    return [...document.querySelectorAll("[class*=CBX_checked], [class*=RD_active]")].some(vis);
+  });
+  if (!checkedClass) throw new Error("store_activity_external_note_not_checked");
+  return { checked: true };
+}
+
+async function storeActivityCreateButton() {
+  return page.evaluate(() => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const b = [...document.querySelectorAll("button")].filter(x => x.offsetParent && t(x) === "创建").pop();
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), disabled: b.disabled };
+  });
+}
+
+async function storeActivityVerifyList(activityName, goodsIds) {
+  await page.goto("https://mms.pinduoduo.com/tool/promotion", { timeout: 60000 });
+  await page.waitForTimeout(4000);
+  const text = await page.evaluate(() => document.body.innerText || "");
+  const rows = text.split("\n").map(x => x.trim()).filter(Boolean).filter(x => x.includes(activityName) || goodsIds.some(id => x.includes(id)));
+  const verified = text.includes(activityName) && goodsIds.every(id => text.includes(id));
+  return { verified, rows: rows.slice(0, 20) };
+}
+
+async function storeActivityConfirmEnd() {
+  for (let i = 0; i < 10; i++) {
+    const pos = await page.evaluate(() => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+      const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      const title = [...document.querySelectorAll("div")].filter(x => vis(x) && t(x).includes("确定结束此活动吗"))[0];
+      const btn = [...document.querySelectorAll("button,span,div")].filter(x => vis(x) && t(x) === "确认结束").pop();
+      if (!btn) return null;
+      const r = btn.getBoundingClientRect();
+      return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), hasTitle: !!title };
+    });
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await page.waitForTimeout(1500);
+      return { clicked: true, ...pos };
+    }
+    await page.waitForTimeout(500);
+  }
+  return { clicked: false };
+}
+
+async function storeActivityDirectEnd() {
+  for (let i = 0; i < 10; i++) {
+    const pos = await page.evaluate(() => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+      const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      const el = [...document.querySelectorAll("button,span,div")].filter(x => vis(x) && t(x) === "直接结束").pop();
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+    });
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await page.waitForTimeout(1500);
+      return { clicked: true, ...pos };
+    }
+    await page.waitForTimeout(500);
+  }
+  return { clicked: false };
+}
+
+async function storeActivityClose() {
+  const name = String(JOB.activityName || "").trim();
+  if (!name) throw new Error("store_activity_close_name_required");
+  const goodsId = String(JOB.goodsId || (JOB.goodsIds || [])[0] || "");
+  await page.goto("https://mms.pinduoduo.com/tool/promotion", { timeout: 60000 });
+  await page.waitForTimeout(4000);
+  await dismissCouponNotices();
+  let hit = null;
+  for (let i = 0; i < 10; i++) {
+    hit = await page.evaluate(({ name, goodsId }) => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+      const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      const rows = [...document.querySelectorAll("tr")].filter(vis).filter(r => {
+        const s = t(r);
+        if (!s.includes(name)) return false;
+        if (goodsId && !s.includes(goodsId)) return false;
+        return true;
+      });
+      if (rows.length !== 1) return { count: rows.length };
+      const b = [...rows[0].querySelectorAll("a")].find(x => vis(x) && t(x) === "结束") || [...rows[0].querySelectorAll("a,button,span,div")].filter(x => vis(x) && t(x) === "结束")[0];
+      if (!b) return { count: 1, endButton: false, rowText: t(rows[0]).slice(0, 400) };
+      b.setAttribute("data-ego-store-end", "1");
+      const r = b.getBoundingClientRect();
+      return { count: 1, endButton: true, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), tag: b.tagName, href: b.getAttribute("href"), rowText: t(rows[0]).slice(0, 400) };
+    }, { name, goodsId });
+    if (hit && hit.count === 1 && hit.endButton) break;
+    if (hit && hit.count > 1) throw new Error("store_activity_close_ambiguous:" + hit.count);
+    await page.waitForTimeout(1000);
+  }
+  if (!hit || hit.count === 0) throw new Error("store_activity_row_not_found:" + name);
+  if (!hit.endButton) throw new Error("store_activity_end_button_missing:" + name);
+  if (JOB.confirmClose !== true) return { status: "preview", activityName: name, goodsId, rowText: hit.rowText, wouldClose: true, note: "confirmClose!=true: 未结束" };
+  try { await page.click('css=[data-ego-store-end="1"]', { label: "结束活动" }); }
+  catch (e) { await page.mouse.click(hit.x, hit.y); }
+  await page.waitForTimeout(1000);
+  let confirm = await storeActivityConfirmEnd();
+  if (!confirm.clicked) {
+    await page.evaluate(() => { const a = document.querySelector('[data-ego-store-end="1"]'); if (a) a.click(); });
+    await page.waitForTimeout(1500);
+    confirm = await storeActivityConfirmEnd();
+  }
+  const directEnd = await storeActivityDirectEnd();
+  await page.waitForTimeout(2000);
+  const state = await page.evaluate(({ name, goodsId }) => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const rows = [...document.querySelectorAll("tr")].filter(x => x.offsetParent).filter(r => {
+      const s = t(r);
+      if (!s.includes(name)) return false;
+      if (goodsId && !s.includes(goodsId)) return false;
+      return true;
+    });
+    if (!rows.length) return { found: false };
+    const s = t(rows[0]);
+    const hasEnd = !![...rows[0].querySelectorAll("a,button,span,div")].filter(x => x.offsetParent && t(x) === "结束")[0];
+    return { found: true, status: /已结束/.test(s) ? "ended" : /进行中/.test(s) ? "active" : "unknown", hasEnd, rowText: s.slice(0, 300) };
+  }, { name, goodsId });
+  const closed = !state.found || state.status === "ended" || (state.found && state.hasEnd === false);
+  return { status: closed ? "done" : "failed", error: closed ? undefined : "store_activity_close_not_confirmed", activityName: name, goodsId, closed, confirm, directEnd, state, text: (await page.evaluate(() => document.body.innerText || "")).slice(-1200) };
+}
+
+async function storeActivityLowPriceWarnings() {
+  return page.evaluate(() => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const modals = [...document.querySelectorAll("div")].filter(x => vis(x) && t(x).includes("低价风险预警") && t(x).includes("券后价"));
+    modals.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return ra.width * ra.height - rb.width * rb.height; });
+    const m = modals[0];
+    if (!m) return [];
+    return [...m.querySelectorAll("tr")].filter(vis).map(r => [...r.querySelectorAll("td")].map(x => t(x))).filter(c => c.length >= 4 && c[0] !== "商品信息").map(c => {
+      const goods = c[0] || "";
+      const id = (goods.match(/ID: *([0-9]+)/) || [])[1] || null;
+      const name = goods.replace(/ID: *[0-9]+/, "").trim();
+      return { goods, goodsId: id, goodsName: name, price: c[1], activityPrice: c[2], couponPrice: (c[3] || "").replace("查看优惠叠加", "").trim(), reason: c[4] || "" };
+    });
+  });
+}
+
+async function storeActivityConfirmLowPrice() {
+  const marked = await page.evaluate(() => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const els = [...document.querySelectorAll("button,div,span,a")].filter(x => vis(x) && t(x).includes("确认低价创建"));
+    if (!els.length) return null;
+    els.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return ra.width * ra.height - rb.width * rb.height; });
+    const el = els[0];
+    const target = el.closest("button") || el;
+    target.scrollIntoView({ block: "center", inline: "center" });
+    const r = target.getBoundingClientRect();
+    target.setAttribute("data-ego-activity-lowprice", "1");
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), tag: target.tagName, cls: String(target.className || "").slice(0, 120) };
+  });
+  if (!marked) return null;
+  await page.mouse.click(marked.x, marked.y);
+  await page.waitForTimeout(2000);
+  return marked;
+}
+
+async function storeActivityEnsureTime() {
+  const read = () => page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && /开始时间/.test(x.placeholder || ""));
+    return i ? i.value : "";
+  });
+  let value = await read();
+  if (value) return { value, source: "default" };
+  const pos = await page.evaluate(() => {
+    const i = [...document.querySelectorAll("input")].find(x => x.offsetParent && /开始时间/.test(x.placeholder || ""));
+    if (!i) return null;
+    const r = i.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+  });
+  if (!pos) throw new Error("store_activity_time_input_missing");
+  await page.mouse.click(pos.x, pos.y);
+  await page.waitForTimeout(1500);
+  const conf = await page.evaluate(() => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const b = [...document.querySelectorAll("button,span,div")].filter(x => x.offsetParent && t(x) === "确认").pop();
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+  });
+  if (conf) await page.mouse.click(conf.x, conf.y);
+  await page.waitForTimeout(1200);
+  value = await read();
+  if (!value) throw new Error("store_activity_time_not_set");
+  return { value, source: "default_confirm" };
+}
+
+async function storeActivityDisableDailyWindow() {
+  const read = () => page.evaluate(() => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const labels = [...document.querySelectorAll("label,div,span")].filter(x => vis(x) && t(x).includes("活动在每日指定时间段内生效"));
+    labels.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return ra.width * ra.height - rb.width * rb.height; });
+    const el = labels[0];
+    if (!el) return null;
+    const box = el.closest("label[class*=CBX_outerWrapper]") || el.closest("[class*=CBX_outerWrapper]") || el.parentElement;
+    const cb = box.querySelector("input[type=checkbox]");
+    const checked = box.getAttribute("data-checked") === "true" || (cb ? cb.checked : false) || /CBX_active/.test(String(box.className || ""));
+    const target = box.querySelector("[class*=CBX_square]") || box;
+    const r = target.getBoundingClientRect();
+    return { found: true, checked, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), cls: String(box.className || ""), dataChecked: box.getAttribute("data-checked") };
+  });
+  let st = await read();
+  if (!st) return { found: false };
+  if (st.checked) {
+    await page.mouse.click(st.x, st.y);
+    await page.waitForTimeout(600);
+    st = await read();
+  }
+  if (st && st.checked) throw new Error("store_activity_daily_window_not_disabled:" + JSON.stringify(st));
+  return { checked: false, state: st };
+}
+
+async function storeActivityCreate() {
+  const type = String(JOB.activityType || "");
+  if (!["限量促销", "限时促销"].includes(type)) throw new Error("store_activity_type_invalid:" + type);
+  const items = (JOB.items || []).map(x => ({
+    goodsId: String(x.goodsId || ""),
+    discount: x.discount != null ? Number(x.discount) : null,
+    stock: x.stock != null ? Number(x.stock) : null
+  })).filter(x => x.goodsId);
+  if (!items.length) throw new Error("store_activity_items_missing");
+  if (items.length > 30) throw new Error("store_activity_items_over_30:" + items.length);
+  const ids = items.map(x => x.goodsId);
+  if (new Set(ids).size !== ids.length) throw new Error("store_activity_items_duplicate");
+  const name = String(JOB.activityName || type);
+  const autoCreate = JOB.autoCreate !== false;
+  const externalNote = JOB.externalNote !== false;
+
+  await page.goto("https://mms.pinduoduo.com/tool/promotion/create", { timeout: 60000 });
+  await page.waitForTimeout(5000);
+  await storeActivitySetRadio(type);
+  await storeActivitySetName(name);
+  if (autoCreate) await storeActivitySetRadio("活动结束后自动创建，提升下单转化");
+  else await storeActivitySetRadio("活动结束后不自动创建");
+  const select = await storeActivitySelectProducts(ids);
+  for (const item of items) {
+    if (item.discount != null) await storeActivitySetRowField(item.goodsId, "discount", item.discount);
+    if (item.stock != null && type === "限量促销") await storeActivitySetRowField(item.goodsId, "stock", item.stock);
+  }
+  const confirmSetting = await storeActivityClickText("确认设置", true);
+  if (confirmSetting) await page.waitForTimeout(1000);
+  if (externalNote) await storeActivityCheckExternalNote();
+  const timeApplied = null;
+  const rows = [];
+  for (const item of items) rows.push(await storeActivityRowInfo(item.goodsId));
+  const activityTime = await page.evaluate(() => {
+    const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const inputs = [...document.querySelectorAll("input")].filter(vis);
+    const i = inputs.find(x => /开始时间|结束时间/.test(x.placeholder || "")) || inputs.find(x => String(x.value || "").includes("~") && !/25个字/.test(x.placeholder || ""));
+    return i ? { placeholder: i.placeholder, value: i.value } : null;
+  });
+  const selectedCount = await page.evaluate(() => {
+    const m = (document.body.innerText || "").match(/已选择\s*(\d+)\s*个商品/);
+    return m ? Number(m[1]) : null;
+  });
+  const btn = await storeActivityCreateButton();
+  if (!btn) throw new Error("store_activity_create_button_missing");
+  if (btn.disabled) throw new Error("store_activity_create_button_disabled");
+  if (selectedCount != null && selectedCount !== items.length) throw new Error("store_activity_selected_count_mismatch:" + selectedCount);
+
+  const preview = {
+    status: "preview", activityType: type, activityName: name, autoCreate, externalNote,
+    gradient: "统一梯度", selectionMode: "普通添加", activityTime, timeApplied,
+    selectedCount, items: rows, createButton: { enabled: !btn.disabled },
+    note: JOB.dryRun === true ? "dryRun: 未点击创建" : "confirmCreate!=true: 未点击创建（需显式 confirmCreate:true）"
+  };
+  if (JOB.dryRun === true || JOB.confirmCreate !== true) return preview;
+
+  await page.mouse.click(btn.x, btn.y);
+  let created = false, text = "", lowPriceConfirmed = false;
+  for (let i = 0; i < 12; i++) {
+    await page.waitForTimeout(1000);
+    text = await page.evaluate(() => document.body.innerText || "");
+    if (/创建成功|提交成功|创建了/.test(text)) { created = true; break; }
+    const warnings = await storeActivityLowPriceWarnings();
+    const lowPriceText = /低价风险预警|确认低价创建|修改低价商品/.test(text);
+    if (warnings.length || lowPriceText) {
+      const warningsSummary = warnings.map((w, idx) => `${idx + 1}. ${w.goodsName || w.goods}（ID ${w.goodsId || "-"}）拼单价 ${w.price} / 活动价 ${w.activityPrice} / 券后价 ${w.couponPrice} / ${w.reason}`).join("；");
+      const message = warnings.length
+        ? `平台提示低价风险，未提交。共 ${warnings.length} 个 SKU：${warningsSummary}。请确认是否继续`
+        : "平台提示低价风险，未提交。请查看 warningText 明细后决定是否继续";
+      if (JOB.confirmLowPrice !== true) {
+        return { ...preview, status: "needs_user_input", error: "store_activity_low_price_warning", message, warnings, warningsSummary, warningText: text.slice(-2500) };
+      }
+      if (!lowPriceConfirmed) {
+        const marked = await storeActivityConfirmLowPrice();
+        if (!marked) return { ...preview, status: "failed", error: "store_activity_low_price_button_missing", warnings, warningsSummary, warningText: text.slice(-2500) };
+        lowPriceConfirmed = true;
+        continue;
+      }
+    }
+  }
+  if (!created) return { ...preview, status: "failed", error: "store_activity_create_not_confirmed", text: text.slice(-1500) };
+  let verify = null;
+  if (JOB.verify !== false) verify = await storeActivityVerifyList(name, ids);
+  const success = { status: "done", success: true, activityType: type, activityName: name, autoCreate, externalNote, activityTime, timeApplied, items: rows, selectedCount, text: text.slice(-1500), verified: verify ? verify.verified : null, verifyRows: verify ? verify.rows : null };
+  if (verify && !verify.verified) return { ...success, status: "failed", error: "store_activity_verify_failed" };
+  return success;
+}
+
 async function storeActivityList() {
   await page.goto("https://mms.pinduoduo.com/tool/promotion", { timeout: 60000 });
   await page.waitForTimeout(5000);
@@ -1818,6 +2349,8 @@ async function main() {
   const mode = String(JOB.mode || "");
   if (mode === "activity-list") return { status: "done", ...(await activityList()) };
   if (mode === "store-activity-list") return { status: "done", ...(await storeActivityList()) };
+  if (mode === "store-activity-create") return await storeActivityCreate();
+  if (mode === "store-activity-close") return await storeActivityClose();
   if (mode === "coupon-types") return { status: "done", ...(await couponTypes()) };
   if (mode === "coupon-audit") return await couponAudit();
   if (mode === "coupon-create") return await couponCreate();

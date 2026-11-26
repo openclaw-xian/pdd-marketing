@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.31 — 2026-11-26
+
+- 新增 `store-activity-create`：限量促销 / 限时促销；统一梯度、普通添加、默认自动创建；`items` 支持 goodsId/discount/stock；`dryRun` / `confirmCreate` / `verify`。
+- 新增 `store-activity-close`：按 `activityName` 结束，`确认结束` → `直接结束`，行状态回读。
+- 不点「更多设置」、不使用「生效设置」；限时活动时间用页面默认约 7 天。
+- 实测：限量 5 折/100 创建+结束；限时 5 折创建+结束；8 折超出 1～5.1；5 折低价守卫返回 needs_user_input。
+
 ## 0.9.30 — 2026-11-26
 
 - `closeAll` 支持跨页：逐页扫描 1～100 页，`expectedCount` 按总行数校验，preview 返回每页行数，关闭时逐页处理。

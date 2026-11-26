@@ -23,7 +23,7 @@ const shops = (CFG.shops || []).map((s) => typeof s === "string" ? { shop: s } :
 const issues = [];
 const addIssue = (code, q) => issues.push({ code, question: q });
 
-if (!["activity-list", "store-activity-list", "coupon-types", "coupon-audit", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / coupon-audit / platform-preview");
+if (!["activity-list", "store-activity-list", "store-activity-create", "store-activity-close", "coupon-types", "coupon-audit", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / coupon-audit / platform-preview");
 if (!shops.length) addIssue("shops_missing", "config 需要 shops");
 if (!CFG.recordRoot) addIssue("record_root_missing", "config 需要 recordRoot");
 if (mode === "platform-preview" || mode === "platform-search" || mode === "platform-scan" || mode === "platform-enroll" || mode === "platform-inventory") {
@@ -43,6 +43,20 @@ if (mode === "coupon-create") {
   if (!hasItems && !Number.isFinite(Number(CFG.faceAmount))) addIssue("coupon_face_missing", "coupon-create 需要 faceAmount 或 items[].faceAmount");
   if (!hasItems && !Number.isFinite(Number(CFG.issueCount))) addIssue("coupon_issue_missing", "coupon-create 需要 issueCount 或 items[].issueCount");
 }
+if (mode === "store-activity-create") {
+  if (!["限量促销", "限时促销"].includes(String(CFG.activityType || ""))) addIssue("store_activity_type_invalid", "store-activity-create 需要 activityType: 限量促销 / 限时促销");
+  const items = Array.isArray(CFG.items) ? CFG.items : [];
+  if (!items.length) addIssue("store_activity_items_missing", "store-activity-create 需要 items");
+  if (items.length > 30) addIssue("store_activity_items_over_30", "items 最多 30 个");
+  const ids = items.map((x) => String(x.goodsId || ""));
+  if (new Set(ids).size !== ids.length) addIssue("store_activity_items_duplicate", "items 里 goodsId 重复");
+  if (CFG.activityName && String(CFG.activityName).length > 25) addIssue("store_activity_name_too_long", "活动名称最多 25 个字");
+  if (CFG.gradient && CFG.gradient !== "统一梯度") addIssue("store_activity_gradient_invalid", "当前只支持统一梯度");
+  if (CFG.selectionMode && CFG.selectionMode !== "普通添加") addIssue("store_activity_selection_invalid", "当前只支持普通添加");
+}
+if (mode === "store-activity-close") {
+  if (!CFG.activityName) addIssue("store_activity_name_missing", "store-activity-close 需要 activityName");
+}
 if (mode === "coupon-close") {
   if (!CFG.goodsId && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length) && !CFG.couponName) addIssue("coupon_close_goods_id_missing", "coupon-close 需要 goodsId/goodsIds 或 couponName");
 }
@@ -59,6 +73,12 @@ async function runOne(store, i) {
     shop: store.shop, profile: store.profile || null, mode,
     activityId: CFG.activityId,
     activityType: CFG.activityType,
+    activityName: CFG.activityName || null,
+    activityDays: CFG.activityDays != null ? Number(CFG.activityDays) : 7,
+    autoCreate: CFG.autoCreate !== false,
+    externalNote: CFG.externalNote !== false,
+    gradient: CFG.gradient || "统一梯度",
+    selectionMode: CFG.selectionMode || "普通添加",
     goodsIds: CFG.goodsIds,
     goodsId: CFG.goodsId,
     couponType: CFG.couponType,

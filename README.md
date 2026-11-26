@@ -2,7 +2,7 @@
 
 拼多多多店铺营销活动 + 优惠券 skill。
 
-**状态：定稿 0.9.30（2026-11-26）。**
+**状态：定稿 0.9.31（2026-11-26）。**
 
 ## 当前模式
 
@@ -22,6 +22,10 @@
   - `confirmSubmit` 必须为 `true` 才提交
   - `trafficProtection` 可设为 `on` / `off`
   - 未授权时只准备页面，不提交
+
+店铺活动：
+- `store-activity-create`：限量促销 / 限时促销；统一梯度、普通添加、默认自动创建；`dryRun` / `confirmCreate` / `verify`
+- `store-activity-close`：按 `activityName` 结束；`confirmClose`；确认结束 → 直接结束
 
 优惠券：
 - `coupon-create`：商品立减券 / 店铺关注券 / 惊喜券；`dryRun` / `confirmCreate` / `verify` / `verifyAfterSec`
