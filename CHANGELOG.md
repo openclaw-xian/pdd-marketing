@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.25 — 2026-11-26
+
+- 确认低价创建点击实际成功，券会创建；代码不再因未捕获跳转而误报 `coupon_create_not_confirmed`。
+- 有低价 `warnings` 时返回 `success:true` + `low_price_confirmed:true` + `pending_verification:true`，由 `coupon-list` 回读确认；`verify` 在 pending 时跳过。
+- 默认仍 `needs_user_input`，用户决定；`confirmLowPrice` 为实验性。
+- 测试券已 `closeAll` 结束。
+
 ## 0.9.24 — 2026-11-26
 
 - 低价按钮 DOM 定位：`button[data-testid="beast-core-modal-ok-button"]`，`disabled=false`，无 checkbox，按钮中心 `elementFromPoint` 是内部 `SPAN`。

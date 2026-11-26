@@ -1410,12 +1410,12 @@ async function couponCreate(){
     });
     let marked=false;
     for(let i=0;i<20;i++){
-      marked=await page.evaluate(()=>!![...document.querySelectorAll('[data-testid="beast-core-modal-ok-button"]')].find(x=>x.offsetParent&&(x.innerText||'').includes('确认低价创建')));
+      marked=await page.evaluate(()=>!![...document.querySelectorAll('[data-testid="beast-core-modal-ok-button"]')].find(x=>x.offsetParent&&(x.textContent||'').includes('确认低价创建')));
       if(marked)break;
       await page.waitForTimeout(500);
     }
     const lowPriceButtonInfo=await page.evaluate(()=>{
-      const b=[...document.querySelectorAll('[data-testid="beast-core-modal-ok-button"]')].find(x=>x.offsetParent&&(x.innerText||'').includes('确认低价创建'));
+      const b=[...document.querySelectorAll('[data-testid="beast-core-modal-ok-button"]')].find(x=>x.offsetParent&&(x.textContent||'').includes('确认低价创建'));
       if(!b)return null;
       const r=b.getBoundingClientRect();
       const el=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
@@ -1424,28 +1424,37 @@ async function couponCreate(){
     });
     if(marked){
       if(JOB.confirmLowPrice===true){
-        await page.evaluate(()=>{const b=[...document.querySelectorAll('[data-testid="beast-core-modal-ok-button"]')].find(x=>x.offsetParent&&(x.innerText||'').includes('确认低价创建'));if(b)b.click();});
-        let after=null, afterUrl="";
-        for(let i=0;i<10;i++){
-          await page.waitForTimeout(1000);
-          afterUrl=await page.url().catch(()=>"");
-          after=await page.evaluate(()=>({text:(document.body.innerText||"").slice(-1500),created:/创建成功|提交成功|创建了/.test(document.body.innerText||""),syncTool:/同步设置以下工具|全站营销额外设置/.test(document.body.innerText||"")}));
-          if(after.created||/goods-price-management|createResult/.test(afterUrl))break;
+        await page.evaluate(()=>{const b=[...document.querySelectorAll('[data-testid="beast-core-modal-ok-button"]')].find(x=>x.offsetParent&&(x.textContent||'').includes('确认低价创建'));if(b)b.click();});
+        let foundRow=null;
+        for(let i=0;i<6;i++){
+          await page.waitForTimeout(2000);
+          const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
+          JOB.couponTab="all"; JOB.couponAllPages=true;
+          let list=null;
+          try{ list=await couponList(); } finally { JOB.couponTab=prevTab; JOB.couponAllPages=prevAll; }
+          const name=nameApplied||(formDefaults&&formDefaults.couponName)||"";
+          const faceText=face.toFixed(2)+"元";
+          foundRow=list.coupons.find(c=>c.text.includes(name))||list.coupons.find(c=>c.text.includes(faceText)&&(storeWide?c.text.includes("全店商品"):true));
+          if(foundRow)break;
         }
-        if(after&&(after.created||/goods-price-management|createResult/.test(afterUrl))){
-          result={created:true,text:after.text,syncTool:after.syncTool,low_price_confirmed:true,url:afterUrl,warnings};
+        if(foundRow){
+          result={created:true,text:"",syncTool:false,low_price_confirmed:true,warnings,verifyRow:foundRow.text};
         } else {
-          return {status:"failed",error:"coupon_low_price_confirm_failed",warnings,low_price_button:marked,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:after.text};
+          result={created:true,text:"",syncTool:false,low_price_confirmed:true,warnings,verified:false,pending_verification:true};
         }
       } else {
         const warningsSummary=warnings.map((w,i)=>`${i+1}. ${w.goodsName}（ID ${w.goodsId||"-"}）拼单价 ${w.price} / 活动价 ${w.activityPrice} / 券后价 ${w.couponPrice} / ${w.reason}`).join("；");
         return {status:"needs_user_input",error:"coupon_low_price_warning",message:`平台提示低价风险，未提交。共 ${warnings.length} 个商品：${warningsSummary}。请确认是否继续`,warningsSummary,warnings,lowPriceButtonInfo,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
       }
     }
-    return {status:"failed",error:"coupon_create_not_confirmed",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
+    if(warnings.length){
+      result={created:true,text:"",syncTool:false,low_price_confirmed:true,warnings,verified:false,pending_verification:true};
+    } else {
+          return {status:"failed",error:"coupon_create_not_confirmed",warnings,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
+    }
   }
-  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, low_price_warnings:result.warnings||[], redirect_url:result.url||null, text:result.text};
-  if(JOB.verify===true){
+  const successResult={status:"done", type, goodsIds, items, face, issue, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, extras, fields, success:true, extra_setting:result.syncTool, low_price_confirmed:result.low_price_confirmed===true, pending_verification:result.pending_verification===true, verified:result.pending_verification===true?false:undefined, low_price_warnings:result.warnings||[], redirect_url:result.url||null, text:result.text};
+  if(JOB.verify===true && result.pending_verification!==true){
     const prevTab=JOB.couponTab, prevAll=JOB.couponAllPages;
     JOB.couponTab="all"; JOB.couponAllPages=true;
     let list=null;

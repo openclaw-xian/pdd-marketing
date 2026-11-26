@@ -280,3 +280,8 @@ node run.mjs coupon-close.json          # 结束
 
 - 低价按钮 button[data-testid="beast-core-modal-ok-button"]，disabled=false，无 checkbox，中心 elementFromPoint=SPAN。
 - mouse/JS/可见按钮点击均未触发创建；手动可创建，疑似可信手势/二次确认。
+
+## 22. 0.9.25 补充
+
+- 低价确认点击后券会创建；不再误报 coupon_create_not_confirmed。
+- 有 warnings 时返回 success + low_price_confirmed + pending_verification；verify 跳过，由 coupon-list 回读。
