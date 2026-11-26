@@ -1052,8 +1052,13 @@ async function couponCreate(){
 }
 
 async function couponList(){
-  await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
-  await page.waitForTimeout(5000);
+  const cur=await page.url().catch(()=>"");
+  if(!String(cur).includes("/tool/coupon?tab=1")){
+    await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
+    await page.waitForTimeout(5000);
+  } else {
+    await page.waitForTimeout(800);
+  }
   const notices=await dismissCouponNotices();
   const tab=String(JOB.couponTab||"").trim();
   if(tab){
@@ -1093,25 +1098,35 @@ async function couponClose(){
   if(!goodsId)throw new Error("coupon_close_goods_id_missing");
   const type=String(JOB.couponType||"").trim();
   const face=JOB.faceAmount!=null&&JOB.faceAmount!==""?Number(JOB.faceAmount):null;
-  await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
-  await page.waitForTimeout(5000);
+  const cur=await page.url().catch(()=>"");
+  if(!String(cur).includes("/tool/coupon?tab=1")){
+    await page.goto("https://mms.pinduoduo.com/tool/coupon?tab=1",{timeout:60000});
+    await page.waitForTimeout(5000);
+  } else {
+    await page.waitForTimeout(800);
+  }
   await dismissCouponNotices();
-  const hit=await page.evaluate(({id,type,face})=>{
-    const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
-    const rows=[...document.querySelectorAll("tr")].filter(r=>r.offsetParent&&t(r).includes(id)).filter(r=>{
-      const s=t(r);
-      if(type&&!s.includes(type))return false;
-      if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
-      return true;
-    });
-    if(rows.length!==1)return {count:rows.length};
-    const b=[...rows[0].querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
-    if(!b)return {count:1,endButton:false};
-    const r=b.getBoundingClientRect();
-    return {count:1,endButton:true,x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
-  },{id:goodsId,type,face});
-  if(hit.count===0)throw new Error("coupon_row_not_found:"+goodsId+(type?":"+type:"")+(face!=null?":"+face:""));
-  if(hit.count>1)throw new Error("coupon_close_ambiguous:"+hit.count);
+  let hit=null;
+  for(let i=0;i<12;i++){
+    hit=await page.evaluate(({id,type,face})=>{
+      const t=(x)=>(x?(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
+      const rows=[...document.querySelectorAll("tr")].filter(r=>r.offsetParent&&t(r).includes(id)).filter(r=>{
+        const s=t(r);
+        if(type&&!s.includes(type))return false;
+        if(face!=null&&!new RegExp(face.toFixed(2)+"元").test(s))return false;
+        return true;
+      });
+      if(rows.length!==1)return {count:rows.length};
+      const b=[...rows[0].querySelectorAll("a,button,span,div")].filter(x=>x.offsetParent&&!x.children.length&&t(x)==="结束")[0];
+      if(!b)return {count:1,endButton:false};
+      const r=b.getBoundingClientRect();
+      return {count:1,endButton:true,x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+    },{id:goodsId,type,face});
+    if(hit && hit.count===1 && hit.endButton)break;
+    if(hit && hit.count>1)throw new Error("coupon_close_ambiguous:"+hit.count);
+    await page.waitForTimeout(1000);
+  }
+  if(!hit||hit.count===0)throw new Error("coupon_row_not_found:"+goodsId+(type?":"+type:"")+(face!=null?":"+face:""));
   if(!hit.endButton)throw new Error("coupon_end_button_missing:"+goodsId);
   await page.mouse.click(hit.x,hit.y);
   await page.waitForTimeout(1200);
@@ -1153,5 +1168,5 @@ async function main() {
 let result;
 try { result=await main(); await writeResult({ok:true,...result}); }
 catch(e){ const msg=String(e.message||e); log("ERROR",msg); result={status:"failed",error:msg}; await writeResult({ok:false,...result}); }
-finally { try{ if(task) { if (((JOB.mode||"") === "platform-preview" || (JOB.mode||"") === "platform-search" || (JOB.mode||"") === "platform-scan" || (JOB.mode||"") === "platform-enroll" || (JOB.mode||"") === "platform-status" || (JOB.mode||"") === "platform-inventory") && result && result.status === "done") await task.handOff(); else await task.finish({keep:[]}); } }catch(e){} }
+finally { try{ if(task) { const mode=String(JOB.mode||""); const keepByDefault=["activity-list","store-activity-list","coupon-types","coupon-list","platform-preview","platform-search","platform-scan","platform-enroll","platform-record","platform-status","platform-inventory"].includes(mode); const keep=JOB.keepOpen===true||(JOB.keepOpen!==false&&keepByDefault); if(keep) await task.handOff(); else await task.finish({keep:[]}); } }catch(e){} }
 console.log("WORKER_RESULT="+JSON.stringify({shop:JOB.shop,status:result&&result.status,error:result&&result.error}));

@@ -61,6 +61,7 @@ async function runOne(store, i) {
     perPersonLimit: CFG.perPersonLimit,
     couponName: CFG.couponName,
     couponTab: CFG.couponTab || null,
+    keepOpen: CFG.keepOpen == null ? null : CFG.keepOpen === true,
     extraDiscount: CFG.extraDiscount != null ? Number(CFG.extraDiscount) : null,
     surpriseExtraDiscount: CFG.surpriseExtraDiscount != null ? Number(CFG.surpriseExtraDiscount) : null,
     dryRun: CFG.dryRun === true,
