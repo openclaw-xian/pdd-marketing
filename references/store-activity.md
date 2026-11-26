@@ -97,6 +97,9 @@
 - 8 折：商品允许范围 `1～5.1`，返回 needs_user_input
 - 不传折扣：返回 needs_user_input，推荐 5.1 / 范围 1～5.1
 - 5.0 折：dryRun 成功，活动价 13.95～45.00，库存 100
+- 5 商品真实创建：`selectedCount=5`、`verified=true`；库存不传时全部使用页面默认最大值（728735 / 499950×3 / 39996），结果标记 `stockDefaulted=true`
+- 5 商品 verify：列表只展示部分商品 ID，`verified` 按活动名判定，同时返回 `verifyFoundGoodsIds` / `verifyMissingGoodsIds`
+- 5 商品结束：按活动名命中 4 行报 ambiguous；带 goodsId 结束一行后整活动结束，`state.found=false`
 
 ## 7. 已知边界
 

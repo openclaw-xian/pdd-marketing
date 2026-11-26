@@ -389,8 +389,10 @@ async function storeActivityVerifyList(activityName, goodsIds) {
   await page.waitForTimeout(4000);
   const text = await page.evaluate(() => document.body.innerText || "");
   const rows = text.split("\n").map(x => x.trim()).filter(Boolean).filter(x => x.includes(activityName) || goodsIds.some(id => x.includes(id)));
-  const verified = text.includes(activityName) && goodsIds.every(id => text.includes(id));
-  return { verified, rows: rows.slice(0, 20) };
+  const nameFound = text.includes(activityName);
+  const foundGoodsIds = goodsIds.filter(id => text.includes(id));
+  const missingGoodsIds = goodsIds.filter(id => !text.includes(id));
+  return { verified: nameFound, nameFound, foundGoodsIds, missingGoodsIds, rows: rows.slice(0, 20) };
 }
 
 async function storeActivityConfirmEnd() {
@@ -643,7 +645,11 @@ async function storeActivityCreate() {
   if (externalNote) await storeActivityCheckExternalNote();
   const timeApplied = null;
   const rows = [];
-  for (const item of items) rows.push(await storeActivityRowInfo(item.goodsId));
+  for (const item of items) {
+    const info = await storeActivityRowInfo(item.goodsId);
+    const stockInput = info.inputs.find(i => /^1~[0-9]+/.test(i.placeholder || ""));
+    rows.push({ ...info, discount: item.discount, stock: stockInput ? stockInput.value : null, stockDefaulted: item.stock == null });
+  }
   const activityTime = await page.evaluate(() => {
     const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
     const inputs = [...document.querySelectorAll("input")].filter(vis);
@@ -694,7 +700,7 @@ async function storeActivityCreate() {
   if (!created) return { ...preview, status: "failed", error: "store_activity_create_not_confirmed", text: text.slice(-1500) };
   let verify = null;
   if (JOB.verify !== false) verify = await storeActivityVerifyList(name, ids);
-  const success = { status: "done", success: true, activityType: type, activityName: name, autoCreate, externalNote, activityTime, timeApplied, items: rows, selectedCount, text: text.slice(-1500), verified: verify ? verify.verified : null, verifyRows: verify ? verify.rows : null };
+  const success = { status: "done", success: true, activityType: type, activityName: name, autoCreate, externalNote, activityTime, timeApplied, items: rows, selectedCount, text: text.slice(-1500), verified: verify ? verify.verified : null, verifyRows: verify ? verify.rows : null, verifyFoundGoodsIds: verify ? verify.foundGoodsIds : null, verifyMissingGoodsIds: verify ? verify.missingGoodsIds : null };
   if (verify && !verify.verified) return { ...success, status: "failed", error: "store_activity_verify_failed" };
   return success;
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.37 — 2026-11-26
+
+- 多商品创建实测：5 个商品，`selectedCount=5`、`verified=true`；库存不传时使用页面默认最大值，结果标记 `stockDefaulted=true`。
+- 多商品 verify 改为按活动名判定，返回 `verifyFoundGoodsIds` / `verifyMissingGoodsIds`（列表可能只展示部分商品 ID）。
+- 多商品活动一行一个商品；按活动名关闭会 ambiguous，带 `goodsId` 结束一行即结束整个活动（实测 `state.found=false`）。
+
 ## 0.9.36 — 2026-11-26
 
 - `store-activity-create` 折扣改为必填：`items[].discount` 缺失返回 `needs_user_input` + `store_activity_discount_required`，带推荐值/范围/活动价，不自动用页面推荐值。
