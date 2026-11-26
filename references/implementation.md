@@ -290,3 +290,8 @@ node run.mjs coupon-close.json          # 结束
 
 - closeAll expectedCount 不匹配返回 needs_user_input，不关闭。
 - audit options；verifyAfterSec；extras_requested/extras_verified。
+
+## 24. 0.9.27 补充
+
+- 券列表「数据」不打开额外优惠详情；列表无额外优惠列。
+- extras_verified 仅在成功页出现额外设置时为 true；否则 false，需价格管理「查看优惠叠加」核验。

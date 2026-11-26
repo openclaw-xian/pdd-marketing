@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.27 — 2026-11-26
+
+- 探查券列表「数据」：点击后仍停留券列表，未打开含额外优惠的详情页；列表也没有额外优惠列。
+- 额外优惠实际生效无法从券列表/数据页回读；`extras_verified` 仅在成功页出现额外设置时为 true，否则 false。
+- 真正核验需价格管理「查看优惠叠加」或人工确认；待后续加 price-check 模式。
+- 测试券已 `closeAll` 结束。
+
 ## 0.9.26 — 2026-11-26
 
 - `closeAll` 新增 `expectedCount`：实际行数不匹配返回 `needs_user_input` + `coupon_close_count_mismatch`，不执行关闭；实测 expected=2 / actual=1 被拦截。
