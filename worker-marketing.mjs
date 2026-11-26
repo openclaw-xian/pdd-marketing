@@ -610,6 +610,30 @@ async function storeActivityCreate() {
   if (autoCreate) await storeActivitySetRadio("活动结束后自动创建，提升下单转化");
   else await storeActivitySetRadio("活动结束后不自动创建");
   const select = await storeActivitySelectProducts(ids);
+  const missing = [];
+  const outOfRange = [];
+  for (const item of items) {
+    const info = await storeActivityRowInfo(item.goodsId);
+    if (!info.ok) throw new Error(info.error);
+    const disc = info.inputs.find(i => /请输入折扣/.test(i.placeholder || "")) || info.inputs.find(i => /^[0-9.]+～[0-9.]+$/.test(i.placeholder || ""));
+    const recommendedDiscount = disc ? disc.value : null;
+    if (item.discount == null) {
+      missing.push({ goodsId: item.goodsId, price: info.price, activityPrice: info.activityPrice, discountRange: info.discountRange, recommendedDiscount });
+      continue;
+    }
+    if (info.discountRange) {
+      const m = String(info.discountRange).match(/([0-9.]+)～([0-9.]+)/);
+      if (m && (Number(item.discount) < Number(m[1]) || Number(item.discount) > Number(m[2]))) {
+        outOfRange.push({ goodsId: item.goodsId, requestedDiscount: item.discount, discountRange: info.discountRange, recommendedDiscount, activityPrice: info.activityPrice });
+      }
+    }
+  }
+  if (missing.length) {
+    return { status: "needs_user_input", error: "store_activity_discount_required", message: `请为以下商品指定折扣（页面推荐值仅供参考）：${missing.map(x => `${x.goodsId} 推荐 ${x.recommendedDiscount} / 范围 ${x.discountRange}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: missing };
+  }
+  if (outOfRange.length) {
+    return { status: "needs_user_input", error: "store_activity_discount_out_of_range", message: `以下商品折扣超出允许范围：${outOfRange.map(x => `${x.goodsId} 请求 ${x.requestedDiscount} / 允许 ${x.discountRange}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: outOfRange };
+  }
   for (const item of items) {
     if (item.discount != null) await storeActivitySetRowField(item.goodsId, "discount", item.discount);
     if (item.stock != null && type === "限量促销") await storeActivitySetRowField(item.goodsId, "stock", item.stock);

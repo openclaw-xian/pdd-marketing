@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.36 — 2026-11-26
+
+- `store-activity-create` 折扣改为必填：`items[].discount` 缺失返回 `needs_user_input` + `store_activity_discount_required`，带推荐值/范围/活动价，不自动用页面推荐值。
+- 折扣超出范围返回 `needs_user_input` + `store_activity_discount_out_of_range`，不直接失败。
+- 实测：不传折扣 → 推荐 5.1 / 范围 1～5.1；5.0 折 dryRun → 活动价 13.95～45.00、库存 100。
+
 ## 0.9.35 — 2026-11-26
 
 - 撤销 `store-activity-close` 逐页查找；close 只查当前页（用户确认不做逐页查找）。
