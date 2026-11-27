@@ -46,3 +46,7 @@ node run.mjs marketing-config.json
 ## 操作账本
 
 `record.mjs` 只记录实际操作，按商品生成 `operations.jsonl` 和 `products/<商品ID>.md`；报名前查重，防止重复报名。默认目录 `%USERPROFILE%/pdd-records`，可用 `ledgerRoot` 配置。
+
+## 新会话交接
+
+任何 agent 使用本 skill 前先读 `references/operation-ledger.md`，用 `record-query.mjs` 查目标商品历史；操作完成后必须写账本。新会话不靠记忆，账本是唯一事实来源。

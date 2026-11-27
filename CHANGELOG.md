@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.46 — 2026-11-27
+
+- 新增 `references/operation-ledger.md`：新会话/换 agent 的交接协议。
+- 新增 `record-query.mjs`：按店铺/商品/动作/时间查操作账本。
+- `SKILL.md` 增加“新会话 / 任何 agent 必读”：先查账本、再操作、操作后必须落账。
+
 ## 0.9.45 — 2026-11-27
 
 - 新增 `record.mjs` 操作账本：按商品写 `operations.jsonl` + `products/<商品ID>.md`。
