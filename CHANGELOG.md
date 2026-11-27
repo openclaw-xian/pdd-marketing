@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.56 — 2026-11-27
+
+- 脱敏：示例中的真实店铺名改为 `<店铺>`，示例路径改为占位。
 ## 0.9.55 — 2026-11-27
 
 - 新增共享账本配置：显式 `ledgerRoot` 会写入 `PDD_LEDGER_CONFIG`（默认 `%USERPROFILE%/.config/pdd/ledger.json`）。

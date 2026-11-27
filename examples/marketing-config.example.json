@@ -1,5 +1,5 @@
 {
-  "recordRoot": "D:/pdd-marketing",
+  "recordRoot": "<记录目录>",
   "mode": "platform-preview",
   "shops": [
     { "shop": "<店铺A>", "profile": "<profile-A>" }
