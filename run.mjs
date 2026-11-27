@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { resolveLedgerRoot, appendOperation, findRecent } from "./record.mjs";
 
 const CFG_PATH = process.argv[2];
 if (!CFG_PATH) { console.error("用法: node run.mjs marketing-config.json"); process.exit(2); }
@@ -22,6 +23,7 @@ const mode = String(CFG.mode || "");
 const shops = (CFG.shops || []).map((s) => typeof s === "string" ? { shop: s } : s).filter((s) => s && s.shop);
 const issues = [];
 const addIssue = (code, q) => issues.push({ code, question: q });
+const LEDGER_ROOT = resolveLedgerRoot(CFG);
 
 if (!["activity-list", "store-activity-list", "store-activity-create", "store-activity-close", "coupon-types", "coupon-audit", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-cancel", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / coupon-audit / platform-preview");
 if (!shops.length) addIssue("shops_missing", "config 需要 shops");
@@ -64,6 +66,14 @@ if (mode === "store-activity-close") {
 }
 if (mode === "coupon-close") {
   if (!CFG.goodsId && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length) && !CFG.couponName) addIssue("coupon_close_goods_id_missing", "coupon-close 需要 goodsId/goodsIds 或 couponName");
+}
+if (mode === "platform-enroll" && CFG.confirmSubmit === true && CFG.allowRepeat !== true) {
+  for (const store of shops) {
+    for (const goodsId of (CFG.goodsIds || [])) {
+      const prev = await findRecent({ root: LEDGER_ROOT, shop: store.shop, goodsId, action: "platform-enroll", targetId: CFG.activityId, sinceDays: CFG.duplicateDays || 90 });
+      if (prev && prev.result === "success") addIssue("duplicate_operation", `商品 ${goodsId} 已于 ${prev.timeLocal || prev.time} 报名活动 ${prev.target || prev.targetId}；如确需重复，设置 allowRepeat:true`);
+    }
+  }
 }
 if (!existsSync(EGO)) addIssue("ego_not_found", "ego-browser 不可用");
 if (issues.length) { console.log("PREFLIGHT=needs_user_input"); console.log(JSON.stringify({ status: "needs_user_input", issues }, null, 1)); process.exit(3); }
@@ -132,12 +142,26 @@ async function runOne(store, i) {
   try { await fs.rm(wrapper, { force: true }); } catch (e) {}
   return { shop: store.shop, result, wallSec: Number(((Date.now() - started) / 1000).toFixed(1)) };
 }
+async function recordStoreResult(store, result) {
+  const evidence = path.join(RESULT_DIR, store.shop + ".json");
+  if (mode === "platform-enroll" && result.submitted === true) {
+    for (const goodsId of (CFG.goodsIds || [])) {
+      await appendOperation({ root: LEDGER_ROOT, shop: store.shop, action: "platform-enroll", goodsId, goodsName: result.record && result.record.goodsName, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "未报名", after: (result.record && result.record.status) || "已提交", result: "success", runId: RUN_ID, evidence });
+    }
+  }
+  if (mode === "platform-cancel" && result.status === "done" && Array.isArray(result.canceled)) {
+    for (const c of result.canceled.filter((x) => x.canceled)) {
+      await appendOperation({ root: LEDGER_ROOT, shop: store.shop, action: "platform-cancel", goodsId: c.goodsId, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "已报名", after: "活动下线", result: "success", runId: RUN_ID, evidence });
+    }
+  }
+}
 const done = [];
 for (let i = 0; i < shops.length; i++) {
   const r = await runOne(shops[i], i); done.push(r);
+  try { await recordStoreResult(shops[i], r.result); } catch (e) { console.error("RECORD_FAILED " + (e && e.message || e)); }
   console.log("DONE " + r.shop + " status=" + (r.result.status || "?") + " wall=" + r.wallSec + "s" + (r.result.error ? " err=" + r.result.error : ""));
 }
-const report = { runId: RUN_ID, mode, recordRoot: RECORD_ROOT, stores: done.map((d) => ({ shop: d.shop, wallSec: d.wallSec, ...d.result })) };
+const report = { runId: RUN_ID, mode, recordRoot: RECORD_ROOT, ledgerRoot: LEDGER_ROOT, stores: done.map((d) => ({ shop: d.shop, wallSec: d.wallSec, ...d.result })) };
 await fs.writeFile(path.join(RUN_DIR, "report.json"), JSON.stringify(report, null, 1), "utf8");
 console.log("REPORT=" + path.join(RUN_DIR, "report.json"));
 const needs = report.stores.filter((s) => s.status === "needs_user_input");

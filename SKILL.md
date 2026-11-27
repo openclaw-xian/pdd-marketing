@@ -580,3 +580,11 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - `已生效当前活动`：已报名，无需重复报名
 - `可报名`：未报名，可进入 preview
 - `未找到`：商品不在该活动商品池/不可报名
+
+## 操作账本
+
+- 只记录实际操作（报名/取消/创建/结束等），预览/只读不记。
+- 每个 skill 执行结束后，按商品写一条 `operations.jsonl`，并更新 `products/<商品ID>.md`。
+- 默认账本：`%USERPROFILE%/pdd-records`，可用 `ledgerRoot` 覆盖。
+- `platform-enroll` 提交前按 店铺 + goodsId + activityId 查最近记录；已成功报过则返回 `duplicate_operation`，需 `allowRepeat:true` 才允许重复。
+- 取消成功后追加 `platform-cancel` 记录。

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.45 — 2026-11-27
+
+- 新增 `record.mjs` 操作账本：按商品写 `operations.jsonl` + `products/<商品ID>.md`。
+- 平台报名提交前查重：同店铺 + goodsId + activityId 已成功报过则返回 `duplicate_operation`；`allowRepeat:true` 才允许重复。
+- 报名成功/取消成功自动落账；默认账本 `%USERPROFILE%/pdd-records`，可用 `ledgerRoot` 覆盖。
+
 ## 0.9.44 — 2026-11-27
 
 - 明确规则：`platform-record` 返回 `found=false` 时必须再用 `platform-status` 查活动页状态，不能直接判定未报名。
