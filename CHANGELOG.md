@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.50 — 2026-11-27
+
+- 商品主档加固：未知状态默认拦截写操作（`state_unknown`）。
+- pending intent 立即拦截（`operation_pending`），不再等 30 分钟。
+- 商品档案原子写、可从事件 `rebuildState`。
+- 商品级 `.lock` / `acquireLock` / `releaseLock`。
+- `assertCan` 增加 `allowUnknown`；下架/编辑/报名共用状态门。
+
 ## 0.9.49 — 2026-11-27
 
 - 新增 `product-ledger.mjs`：商品主档、商品事件、`assertCan`、intent/result。
