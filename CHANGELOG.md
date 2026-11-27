@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.44 — 2026-11-27
+
+- 明确规则：`platform-record` 返回 `found=false` 时必须再用 `platform-status` 查活动页状态，不能直接判定未报名。
+
 ## 0.9.43 — 2026-11-27
 
 - 平台活动报名前强制确认流量保护：`confirmSubmit:true` 时必须显式 `trafficProtection: "on" | "off"`，否则返回 `traffic_protection_required`，不提交。

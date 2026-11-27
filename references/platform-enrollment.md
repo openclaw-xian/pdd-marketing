@@ -467,3 +467,7 @@
 - 不得默认替用户开启/关闭。
 - preview 后单独问：流量保护 `on` 还是 `off`、最高降价金额是否接受。
 - `confirmSubmit:true` 时必须显式提供 `trafficProtection: "on" | "off"`，否则 run.mjs 返回 `traffic_protection_required`，不打开报名页。
+
+## 记录页未找到时
+
+`platform-record` 的 `found=false` 只代表当前记录页签/当前页没找到，不等于未报名。必须用 `platform-status` 查活动页状态：`已生效当前活动` / `可报名` / `未找到`。
