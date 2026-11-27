@@ -619,22 +619,23 @@ async function storeActivityCreate() {
     if (!info.ok) throw new Error(info.error);
     const disc = info.inputs.find(i => /请输入折扣/.test(i.placeholder || "")) || info.inputs.find(i => /^[0-9.]+～[0-9.]+$/.test(i.placeholder || ""));
     const recommendedDiscount = disc ? disc.value : null;
+    const goodsName = String(info.text || "").split("\n")[0].trim();
     if (item.discount == null) {
-      missing.push({ goodsId: item.goodsId, price: info.price, activityPrice: info.activityPrice, discountRange: info.discountRange, recommendedDiscount });
+      missing.push({ goodsName, goodsId: item.goodsId, price: info.price, activityPrice: info.activityPrice, discountRange: info.discountRange, recommendedDiscount });
       continue;
     }
     if (info.discountRange) {
       const m = String(info.discountRange).match(/([0-9.]+)～([0-9.]+)/);
       if (m && (Number(item.discount) < Number(m[1]) || Number(item.discount) > Number(m[2]))) {
-        outOfRange.push({ goodsId: item.goodsId, requestedDiscount: item.discount, discountRange: info.discountRange, recommendedDiscount, activityPrice: info.activityPrice });
+        outOfRange.push({ goodsName, goodsId: item.goodsId, requestedDiscount: item.discount, discountRange: info.discountRange, recommendedDiscount, activityPrice: info.activityPrice, price: info.price });
       }
     }
   }
   if (missing.length) {
-    return { status: "needs_user_input", error: "store_activity_discount_required", message: `请为以下商品指定折扣（页面推荐值仅供参考）：${missing.map(x => `${x.goodsId} 推荐 ${x.recommendedDiscount} / 范围 ${x.discountRange}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: missing };
+    return { status: "needs_user_input", error: "store_activity_discount_required", message: `请为以下商品指定折扣（页面推荐值仅供参考）：${missing.map(x => `${x.goodsName}（ID ${x.goodsId}）推荐 ${x.recommendedDiscount} / 范围 ${x.discountRange} / 活动价 ${x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: missing };
   }
   if (outOfRange.length) {
-    return { status: "needs_user_input", error: "store_activity_discount_out_of_range", message: `以下商品折扣超出允许范围：${outOfRange.map(x => `${x.goodsId} 请求 ${x.requestedDiscount} / 允许 ${x.discountRange}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: outOfRange };
+    return { status: "needs_user_input", error: "store_activity_discount_out_of_range", message: `以下商品折扣不符合要求：${outOfRange.map(x => `${x.goodsName}（ID ${x.goodsId}）请求 ${x.requestedDiscount} / 允许 ${x.discountRange} / 推荐 ${x.recommendedDiscount} / 活动价 ${x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: outOfRange };
   }
   for (const item of items) {
     if (item.discount != null) await storeActivitySetRowField(item.goodsId, "discount", item.discount);

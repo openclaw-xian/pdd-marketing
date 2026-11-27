@@ -51,8 +51,8 @@
   - 折扣：`请输入折扣` 或范围 placeholder（如 `1～5.1`）
   - 活动价：推荐值，如 5 折时 13.95～45.00
   - 按钮：批量设置 / 确认设置
-- 没传 `discount`：返回 `needs_user_input` + `store_activity_discount_required`，带推荐值/范围/活动价
-- 折扣超出商品范围：返回 `needs_user_input` + `store_activity_discount_out_of_range`，不直接失败
+- 没传 `discount`：返回 `needs_user_input` + `store_activity_discount_required`，`message` 和 `items[]` 带商品名/ID、推荐折扣、允许范围、活动价，不创建
+- 折扣超出商品范围：返回 `needs_user_input` + `store_activity_discount_out_of_range`，带请求值、允许范围、推荐值、活动价，不创建
 - 8 折在 `1～5.1` 的商品上会直接拒绝
 
 ## 4. 低价风险
@@ -95,7 +95,7 @@
 - 限时促销 dryRun：不点「更多设置」，默认活动时间 `2026-11-26 00:00:00 ~ 2026-12-02 23:59:59`，选中 1
 - 限时促销真实创建：5 折，`success=true`、`verified=true`；随后结束成功
 - 8 折：商品允许范围 `1～5.1`，返回 needs_user_input
-- 不传折扣：返回 needs_user_input，推荐 5.1 / 范围 1～5.1
+- 不传折扣：返回 needs_user_input，消息包含商品名/ID、推荐 1.5 / 范围 1～5.1 / 活动价 4.18～13.50
 - 5.0 折：dryRun 成功，活动价 13.95～45.00，库存 100
 - 5 商品真实创建：`selectedCount=5`、`verified=true`；库存不传时全部使用页面默认最大值（728735 / 499950×3 / 39996），结果标记 `stockDefaulted=true`
 - 5 商品 verify：列表只展示部分商品 ID，`verified` 按活动名判定，同时返回 `verifyFoundGoodsIds` / `verifyMissingGoodsIds`
