@@ -585,15 +585,15 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 - 只记录实际操作（报名/取消/创建/结束等），预览/只读不记。
 - 每个 skill 执行结束后，按商品写一条 `operations.jsonl`，并更新 `products/<商品ID>.md`。
-- 默认账本：`%USERPROFILE%/pdd-records`，可用 `ledgerRoot` 覆盖。
+- 默认账本：`%USERPROFILE%/店铺运营日志`，可用 `ledgerRoot` 覆盖。
 - `platform-enroll` 提交前按 店铺 + goodsId + activityId 查最近记录；已成功报过则返回 `duplicate_operation`，需 `allowRepeat:true` 才允许重复。
 - 取消成功后追加 `platform-cancel` 记录。
 
 ## 新会话 / 任何 agent 必读
 
 1. 读 `references/operation-ledger.md`。
-2. 确定 `ledgerRoot`（配置 > `PDD_LEDGER_ROOT` > `%USERPROFILE%/pdd-records`）。
-3. 操作前查目标商品历史：`node record-query.mjs --skill pdd-marketing --shop <店铺> --goods <商品ID>`。
+2. 确定 `ledgerRoot`（配置 > `PDD_LEDGER_ROOT` > `%USERPROFILE%/店铺运营日志`）。
+3. 操作前查目标商品历史：`node record-query.mjs --root <店铺运营日志> --skill pdd-marketing --shop <店铺> --goods <商品ID>`。
 4. 同店铺 + 同商品 + 同动作 + 同活动/券已成功做过，先告诉用户；`allowRepeat:true` 才允许重复。
-5. 操作完成后必须落账：`<ledgerRoot>/<skill>/<店铺>/operations.jsonl` + `products/<商品ID>.md`。
+5. 操作完成后必须落账：`<ledgerRoot>/<中文分类>/<店铺>/<YYYY-MM>/操作记录.jsonl` + `products/<商品ID>.md`。
 6. 新会话没有记忆，账本是唯一事实来源；不要凭聊天上下文判断“没做过”。

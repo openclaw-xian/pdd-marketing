@@ -7,11 +7,11 @@ agent 不靠会话记忆，靠账本知道“谁在什么时候对哪个商品�
 ## 任何 agent 开始前必做
 
 1. 读 `SKILL.md` 和本文件。
-2. 确定账本目录 `ledgerRoot`：配置 > `PDD_LEDGER_ROOT` > `%USERPROFILE%/pdd-records`。
+2. 确定账本目录 `ledgerRoot`：配置 > `PDD_LEDGER_ROOT` > `%USERPROFILE%/店铺运营日志`。
 3. 查目标商品历史：
 
 ```bash
-node record-query.mjs --skill pdd-marketing --shop <店铺> --goods <商品ID> --days 90
+node record-query.mjs --root "<用户指定目录>/店铺运营日志" --skill pdd-marketing --shop <店铺> --goods <商品ID>
 ```
 
 4. 查同店铺 + 同商品 + 同动作 + 同活动/券是否已经成功做过。
@@ -56,8 +56,8 @@ node record-query.mjs --skill pdd-marketing --shop <店铺> --goods <商品ID> -
 
 ```bash
 node record-query.mjs --shop <店铺> --goods <商品ID>
-node record-query.mjs --skill pdd-marketing --shop <店铺> --days 7
-node record-query.mjs --goods <商品ID> --action platform-enroll --all --json
+node record-query.mjs --root "<用户指定目录>/店铺运营日志" --skill pdd-marketing --shop <店铺> --days 7
+node record-query.mjs --root "<用户指定目录>/店铺运营日志" --all --goods <商品ID> --action platform-enroll --json
 ```
 
 ## 汇报
