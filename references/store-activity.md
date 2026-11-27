@@ -100,6 +100,8 @@
 - 5 商品真实创建：`selectedCount=5`、`verified=true`；库存不传时全部使用页面默认最大值（728735 / 499950×3 / 39996），结果标记 `stockDefaulted=true`
 - 5 商品 verify：列表只展示部分商品 ID，`verified` 按活动名判定，同时返回 `verifyFoundGoodsIds` / `verifyMissingGoodsIds`
 - 5 商品结束：按活动名命中 4 行报 ambiguous；逐个 goodsId 结束 4 行；列表搜索无该活动名（16 条，0 命中）
+- close preview 安全门：`confirmClose:false` 找到「全站营销20261126 / ID 996118183928」，返回 `status=preview`、`wouldClose=true`、`note=未结束`，未点结束
+- 创建确认门：`dryRun:false + confirmCreate:false` 返回 `status=preview`、`selectedCount=1`、创建按钮可用、`note=未点击创建`；列表搜索 `测试确认门-1127` 0 条
 
 ## 7. 已知边界
 

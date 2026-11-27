@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.39 — 2026-11-27
+
+- 安全门实测通过：`store-activity-close` 的 `confirmClose:false` 只返回 preview，不结束活动。
+- 创建确认门实测通过：`dryRun:false + confirmCreate:false` 只预览，不创建；列表搜索 0 条。
+
 ## 0.9.38 — 2026-11-26
 
 - 纠正多商品结束行为：列表一行一个商品，**结束一行只结束该行**，不会结束整个活动。
