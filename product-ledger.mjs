@@ -7,7 +7,7 @@ const SCHEMA_VERSION = 1;
 const DEFAULT_SKILL = "pdd-marketing";
 const STALE_HOURS = 24;
 const PENDING_BLOCK_MIN = 30;
-const WRITE_ACTIONS = new Set(["platform-enroll", "platform-cancel", "delist", "listing", "ego-listing", "coupon-create"]);
+const WRITE_ACTIONS = new Set(["platform-enroll", "platform-cancel", "delist", "coupon-create", "relist"]);
 export function resolveLedgerRoot(cfg = {}) {
   return String(cfg.ledgerRoot || process.env.PDD_LEDGER_ROOT || path.join(process.env.USERPROFILE || os.homedir(), "店铺运营日志")).replace(/\\/g, "/").replace(/\/$/, "");
 }
@@ -55,7 +55,7 @@ function applyResult(state, event) {
   if (after.skus) state.skus = after.skus;
   if (after.lifecycleStatus) state.lifecycleStatus = after.lifecycleStatus;
   if (a === "delist" && event.result === "success") state.lifecycleStatus = after.lifecycleStatus || "已下架";
-  if ((a === "listing" || a === "ego-listing") && event.result === "success") state.lifecycleStatus = after.lifecycleStatus || "审核中";
+  if ((a === "listing" || a === "ego-listing" || a === "listing-new" || a === "relist") && event.result === "success") state.lifecycleStatus = after.lifecycleStatus || "审核中";
   if (a === "platform-enroll" && event.result === "success") {
     state.activeActivities = Array.isArray(state.activeActivities) ? state.activeActivities : [];
     const hit = state.activeActivities.find((x) => String(x.activityId) === String(event.targetId));

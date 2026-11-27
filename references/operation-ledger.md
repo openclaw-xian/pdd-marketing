@@ -90,3 +90,9 @@ node record-query.mjs --root "<用户指定目录>/店铺运营日志" --shop <�
 ## 店铺级操作
 
 物流、账单、订单、客服不是商品级，放 `店铺/<店铺>/`；不要硬塞 `goodsId`。
+
+## 上架语义
+
+- `pdd-ego-listing` 是**新链接上架**：上架前没有 `goodsId`，状态是“未上架/不存在”；成功后创建商品档案，状态为“审核中/在售”。
+- 已下架商品重新上架是 `relist`，不是 `listing-new`；`relist` 允许从“已下架”恢复。
+- `product_delisted` 只拦报名/编辑/建券，不拦新上架。
