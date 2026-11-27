@@ -2,6 +2,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import { resolveLedgerRoot } from "./product-ledger.mjs";
 
 const args = {};
 for (let i = 2; i < process.argv.length; i++) {
@@ -16,7 +17,7 @@ if (args.help || (!args.goods && !args.shop)) {
   console.log("用法: node record-query.mjs --shop <店铺> [--goods <商品ID>] [--root <店铺运营日志>] [--days 90] [--action platform-enroll] [--skill pdd-marketing] [--json]");
   process.exit(0);
 }
-const rootArg = String(args.root || process.env.PDD_LEDGER_ROOT || "").replace(/\\/g, "/");
+const rootArg = String(args.root || process.env.PDD_LEDGER_ROOT || resolveLedgerRoot({}) || "").replace(/\\/g, "/");
 if (!rootArg) { console.error("请指定 --root <店铺运营日志目录>，不要默认 C 盘"); process.exit(2); }
 const root = rootArg;
 const days = Number(args.days || 90);

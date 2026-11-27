@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { resolveLedgerRoot, assertCan, recordIntent, recordResult, acquireLock, releaseLock } from "./product-ledger.mjs";
+import { resolveLedgerRoot, saveLedgerRoot, assertCan, recordIntent, recordResult, acquireLock, releaseLock } from "./product-ledger.mjs";
 
 const CFG_PATH = process.argv[2];
 if (!CFG_PATH) { console.error("用法: node run.mjs marketing-config.json"); process.exit(2); }
@@ -24,6 +24,7 @@ const shops = (CFG.shops || []).map((s) => typeof s === "string" ? { shop: s } :
 const issues = [];
 const addIssue = (code, q) => issues.push({ code, question: q });
 const LEDGER_ROOT = resolveLedgerRoot(CFG);
+try { if (CFG.ledgerRoot && CFG.persistLedgerRoot !== false) saveLedgerRoot(LEDGER_ROOT); } catch {}
 if (!LEDGER_ROOT) addIssue("ledger_root_required", "首次使用请指定运营日志目录 ledgerRoot，不要默认 C 盘");
 
 if (!["activity-list", "store-activity-list", "store-activity-create", "store-activity-close", "coupon-types", "coupon-audit", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-cancel", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / coupon-audit / platform-preview");

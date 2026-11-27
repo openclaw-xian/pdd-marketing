@@ -1,5 +1,6 @@
 // 商品主档：所有 skill 的商品事件都写到 商品/<店铺>/<商品ID>/。
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
@@ -8,8 +9,21 @@ const DEFAULT_SKILL = "pdd-marketing";
 const STALE_HOURS = 24;
 const PENDING_BLOCK_MIN = 30;
 const WRITE_ACTIONS = new Set(["platform-enroll", "platform-cancel", "delist", "coupon-create", "relist"]);
+const SHARED_CONFIG = String(process.env.PDD_LEDGER_CONFIG || path.join(process.env.USERPROFILE || os.homedir(), ".config", "pdd", "ledger.json")).replace(/\\/g, "/");
+function readSharedRoot() {
+  try {
+    const j = JSON.parse(fsSync.readFileSync(SHARED_CONFIG, "utf8"));
+    return String(j.ledgerRoot || "").replace(/\\/g, "/").replace(/\/$/, "");
+  } catch { return ""; }
+}
+export function saveLedgerRoot(root) {
+  const r = String(root || "").trim();
+  if (!r) return;
+  fsSync.mkdirSync(path.dirname(SHARED_CONFIG), { recursive: true });
+  fsSync.writeFileSync(SHARED_CONFIG, JSON.stringify({ ledgerRoot: r }, null, 1), "utf8");
+}
 export function resolveLedgerRoot(cfg = {}) {
-  return String(cfg.ledgerRoot || process.env.PDD_LEDGER_ROOT || "").replace(/\\/g, "/").replace(/\/$/, "");
+  return String(cfg.ledgerRoot || process.env.PDD_LEDGER_ROOT || readSharedRoot() || "").replace(/\\/g, "/").replace(/\/$/, "");
 }
 function safeName(s) { return String(s || "unknown").replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_"); }
 function pad(n) { return String(n).padStart(2, "0"); }

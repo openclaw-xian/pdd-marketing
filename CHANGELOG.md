@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.55 — 2026-11-27
+
+- 新增共享账本配置：显式 `ledgerRoot` 会写入 `PDD_LEDGER_CONFIG`（默认 `%USERPROFILE%/.config/pdd/ledger.json`）。
+- 其他 skill 自动读取共享配置，不再重复询问。
+- `record-query.mjs` 无 `--root` 时读取共享配置。
+
 ## 0.9.54 — 2026-11-27
 
 - 首次使用必须指定 `ledgerRoot`，未配置返回 `ledger_root_required`，不再默认 C 盘。
