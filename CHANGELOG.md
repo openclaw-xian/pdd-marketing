@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.41 — 2026-11-27
+
+- 新增 `platform-cancel`：按活动名/activityId + goodsIds 在报名记录页取消；`confirmCancel:true` 才执行。
+- 取消前用鼠标关闭「新消息」弹窗（`ImportantList_close__d0eKb`），强制回第 1 页再逐页扫描。
+- 记录页显示「审核中」时返回 `platform_cancel_pending_review`，不误报 row_not_found。
+- 实测：场景专属券 22196 报名提交成功；取消模式最终 `canceled=true`。
+
 ## 0.9.40 — 2026-11-27
 
 - 店铺活动折扣不合规/缺失时，回读信息补全：商品名、商品 ID、请求折扣、允许范围、推荐折扣、活动价；message 全部列出，由用户决定。

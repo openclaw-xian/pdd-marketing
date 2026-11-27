@@ -19,6 +19,7 @@
 
 写操作（必须显式授权）：
 - `platform-enroll`：支持多个 `goodsIds`，只选授权商品 + 流量保护开关 + 可选提交 + 逐商品回读
+- `platform-cancel`：按活动名/activityId + goodsIds 取消报名；`confirmCancel:true` 才执行
   - `confirmSubmit` 必须为 `true` 才提交
   - `trafficProtection` 可设为 `on` / `off`
   - 未授权时只准备页面，不提交

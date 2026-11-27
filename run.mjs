@@ -23,7 +23,7 @@ const shops = (CFG.shops || []).map((s) => typeof s === "string" ? { shop: s } :
 const issues = [];
 const addIssue = (code, q) => issues.push({ code, question: q });
 
-if (!["activity-list", "store-activity-list", "store-activity-create", "store-activity-close", "coupon-types", "coupon-audit", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / coupon-audit / platform-preview");
+if (!["activity-list", "store-activity-list", "store-activity-create", "store-activity-close", "coupon-types", "coupon-audit", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-cancel", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / coupon-audit / platform-preview");
 if (!shops.length) addIssue("shops_missing", "config 需要 shops");
 if (!CFG.recordRoot) addIssue("record_root_missing", "config 需要 recordRoot");
 if (mode === "platform-preview" || mode === "platform-search" || mode === "platform-scan" || mode === "platform-enroll" || mode === "platform-inventory") {
@@ -54,6 +54,10 @@ if (mode === "store-activity-create") {
   if (CFG.gradient && CFG.gradient !== "统一梯度") addIssue("store_activity_gradient_invalid", "当前只支持统一梯度");
   if (CFG.selectionMode && CFG.selectionMode !== "普通添加") addIssue("store_activity_selection_invalid", "当前只支持普通添加");
 }
+if (mode === "platform-cancel") {
+  if (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length) addIssue("cancel_goods_ids_missing", "platform-cancel 需要 goodsIds");
+  if (!CFG.activityName && !CFG.activityId) addIssue("cancel_activity_missing", "platform-cancel 需要 activityName 或 activityId");
+}
 if (mode === "store-activity-close") {
   if (!CFG.activityName) addIssue("store_activity_name_missing", "store-activity-close 需要 activityName");
 }
@@ -74,6 +78,7 @@ async function runOne(store, i) {
     activityId: CFG.activityId,
     activityType: CFG.activityType,
     activityName: CFG.activityName || null,
+    confirmCancel: CFG.confirmCancel === true,
     activityDays: CFG.activityDays != null ? Number(CFG.activityDays) : 7,
     autoCreate: CFG.autoCreate !== false,
     externalNote: CFG.externalNote !== false,

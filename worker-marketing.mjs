@@ -1160,6 +1160,80 @@ async function platformInventory() {
   const merged=products.map((p)=>({...p,status:(lookup.statuses&&lookup.statuses[p.id]&&lookup.statuses[p.id].status)||"未找到"}));
   return {status:"done",products:merged,missingStatus:lookup.missing};
 }
+async function dismissRecordNotices() {
+  for (let i = 0; i < 3; i++) {
+    const targets = await page.evaluate(() => {
+      const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      return [...document.querySelectorAll(".ImportantList_close__d0eKb, [class*=ImportantList_close]")].filter(vis).map(el => {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+      });
+    });
+    if (!targets.length) break;
+    for (const t of targets) { await page.mouse.click(t.x, t.y); await page.waitForTimeout(300); }
+    await page.waitForTimeout(500);
+  }
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(300);
+}
+
+async function platformCancel() {
+  const ids = (JOB.goodsIds || []).map(String).filter(Boolean);
+  const name = String(JOB.activityName || "").trim();
+  const aid = String(JOB.activityId || "").trim();
+  if (!ids.length) throw new Error("cancel_goods_ids_missing");
+  if (!name && !aid) throw new Error("cancel_activity_missing");
+  await page.goto("https://mms.pinduoduo.com/act/register_record", { timeout: 60000 });
+  await page.waitForTimeout(5000);
+  const found = [];
+  for (let pageNo = 1; pageNo <= 20; pageNo++) {
+    if (pageNo > 1) {
+      const ok = await clickPageNumber(pageNo);
+      if (!ok) break;
+      await page.waitForTimeout(1200);
+    }
+    const rows = await page.evaluate(({ ids, name, aid }) => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+      const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      return [...document.querySelectorAll("tr")].filter(vis).filter(r => {
+        const s = t(r);
+        if (name && !s.includes(name)) return false;
+        if (aid && !s.includes(aid)) return false;
+        return ids.some(id => s.includes(id));
+      }).map(r => {
+        const s = t(r);
+        const id = ids.find(x => s.includes(x));
+        const link = [...r.querySelectorAll("a,button,span,div")].filter(x => vis(x) && t(x) === "取消活动")[0];
+        if (!link) return null;
+        const rr = link.getBoundingClientRect();
+        return { id, rowText: s.slice(0, 500), x: Math.round(rr.x + rr.width / 2), y: Math.round(rr.y + rr.height / 2) };
+      }).filter(Boolean);
+    }, { ids, name, aid });
+    for (const row of rows) if (!found.some(x => x.id === row.id)) found.push({ ...row, page: pageNo });
+  }
+  if (JOB.confirmCancel !== true) return { status: "preview", activityName: name || null, activityId: aid || null, rows: found, count: found.length, wouldCancel: true, note: "confirmCancel!=true: 未取消" };
+  const canceled = [];
+  for (const id of ids) {
+    const hit = found.find(x => x.id === id);
+    if (!hit) { canceled.push({ goodsId: id, canceled: false, error: "row_not_found" }); continue; }
+    if (hit.page !== 1) { const ok = await clickPageNumber(hit.page); if (!ok) { canceled.push({ goodsId: id, canceled: false, error: "page_not_found" }); continue; } await page.waitForTimeout(1200); }
+    await page.mouse.click(hit.x, hit.y);
+    await page.waitForTimeout(1200);
+    const confirm = await page.evaluate(() => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+      const b = [...document.querySelectorAll("button,span,div")].filter(x => x.offsetParent && t(x) === "放弃活动").pop();
+      if (!b) return null;
+      const r = b.getBoundingClientRect();
+      return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+    });
+    if (confirm) { await page.mouse.click(confirm.x, confirm.y); await page.waitForTimeout(1500); }
+    const text = await page.evaluate(() => document.body.innerText || "");
+    canceled.push({ goodsId: id, canceled: /取消成功|活动下线/.test(text), text: text.slice(-500) });
+  }
+  const ok = canceled.every(x => x.canceled);
+  return { status: ok ? "done" : "failed", error: ok ? undefined : "platform_cancel_not_confirmed", activityName: name || null, activityId: aid || null, canceled };
+}
+
 async function platformEnroll() {
   const activityId=String(JOB.activityId||"").trim();
   const activityType=String(JOB.activityType||"").trim();
@@ -2391,6 +2465,7 @@ async function main() {
   if (mode === "platform-search") return { status: "done", ...(await platformSearch()) };
   if (mode === "platform-scan") return { status: "done", scan: await scanAllProducts() };
   if (mode === "platform-enroll") return await platformEnroll();
+  if (mode === "platform-cancel") return await platformCancel();
   if (mode === "platform-record") return await platformRecord();
   if (mode === "platform-status") return await platformStatus();
   if (mode === "platform-inventory") return await platformInventory();
