@@ -153,7 +153,7 @@ export async function assertCan({ root, skill = DEFAULT_SKILL, shop, goodsId, ac
     if (enroll && (!cancel || String(cancel.time) < String(enroll.time))) blocked = "duplicate_operation";
   }
   const pending = await pendingIntents({ root, shop, goodsId, olderThanMin: 0 });
-  if (pending.some((e) => e.action === action && (!targetId || String(e.targetId) === String(targetId)))) blocked = "operation_pending";
+  if (pending.length) blocked = "operation_pending";
   if (state.stale) warnings.push("state_stale");
   if (action === "delist" && Array.isArray(state.activeActivities) && state.activeActivities.some((x) => !["已取消", "已结束"].includes(x.status))) warnings.push("activity_active");
   return { allowed: !blocked, blocked, warnings, state, pending };

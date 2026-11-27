@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.53 — 2026-11-27
+
+- pending intent 改为任何未完成操作都拦截（operation_pending），不再只拦同动作。
+- 商品锁仍只在报名/取消入口强制。
+
 ## 0.9.52 — 2026-11-27
 
 - 修正上架语义：`pdd-ego-listing` 是新链接上架，不适用 `product_delisted`；新上架前状态为“未上架/不存在”。
