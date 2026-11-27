@@ -11,7 +11,7 @@ agent 不靠会话记忆，靠账本知道“谁在什么时候对哪个商品�
 3. 查目标商品历史：
 
 ```bash
-node record-query.mjs --shop <店铺> --goods <商品ID> --days 90
+node record-query.mjs --skill pdd-marketing --shop <店铺> --goods <商品ID> --days 90
 ```
 
 4. 查同店铺 + 同商品 + 同动作 + 同活动/券是否已经成功做过。
@@ -56,8 +56,8 @@ node record-query.mjs --shop <店铺> --goods <商品ID> --days 90
 
 ```bash
 node record-query.mjs --shop <店铺> --goods <商品ID>
-node record-query.mjs --shop <店铺> --days 7
-node record-query.mjs --goods <商品ID> --action platform-enroll --json
+node record-query.mjs --skill pdd-marketing --shop <店铺> --days 7
+node record-query.mjs --goods <商品ID> --action platform-enroll --all --json
 ```
 
 ## 汇报

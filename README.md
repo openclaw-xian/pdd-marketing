@@ -45,7 +45,7 @@ node run.mjs marketing-config.json
 范围与红线见 [SKILL.md](SKILL.md)。
 ## 操作账本
 
-`record.mjs` 只记录实际操作，按商品生成 `operations.jsonl` 和 `products/<商品ID>.md`；报名前查重，防止重复报名。默认目录 `%USERPROFILE%/pdd-records`，可用 `ledgerRoot` 配置。
+`record.mjs` 只记录实际操作，按 skill 一个账本，目录为 `<ledgerRoot>/<skill>/<店铺>/`，生成 `operations.jsonl` 和 `products/<商品ID>.md`；报名前查重，防止重复报名。默认目录 `%USERPROFILE%/pdd-records`，可用 `ledgerRoot` 配置。
 
 ## 新会话交接
 

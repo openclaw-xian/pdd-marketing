@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.47 — 2026-11-27
+
+- 账本结构改为“一 skill 一账本”：`<ledgerRoot>/<skill>/<店铺>/operations.jsonl`。
+- 所有 skill 账本统一放在同一个 `ledgerRoot` 下。
+- `record-query.mjs` 支持 `--skill` 单账本、`--all` 跨 skill 查询。
+- 实测：`pdd-marketing` 账本生成、单 skill 查询、全部查询、重复报名 preflight 均通过。
+
 ## 0.9.46 — 2026-11-27
 
 - 新增 `references/operation-ledger.md`：新会话/换 agent 的交接协议。

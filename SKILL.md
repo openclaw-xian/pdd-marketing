@@ -593,7 +593,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 1. 读 `references/operation-ledger.md`。
 2. 确定 `ledgerRoot`（配置 > `PDD_LEDGER_ROOT` > `%USERPROFILE%/pdd-records`）。
-3. 操作前查目标商品历史：`node record-query.mjs --shop <店铺> --goods <商品ID>`。
+3. 操作前查目标商品历史：`node record-query.mjs --skill pdd-marketing --shop <店铺> --goods <商品ID>`。
 4. 同店铺 + 同商品 + 同动作 + 同活动/券已成功做过，先告诉用户；`allowRepeat:true` 才允许重复。
-5. 操作完成后必须落账：`operations.jsonl` + `products/<商品ID>.md`。
+5. 操作完成后必须落账：`<ledgerRoot>/<skill>/<店铺>/operations.jsonl` + `products/<商品ID>.md`。
 6. 新会话没有记忆，账本是唯一事实来源；不要凭聊天上下文判断“没做过”。

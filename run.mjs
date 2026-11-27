@@ -70,7 +70,7 @@ if (mode === "coupon-close") {
 if (mode === "platform-enroll" && CFG.confirmSubmit === true && CFG.allowRepeat !== true) {
   for (const store of shops) {
     for (const goodsId of (CFG.goodsIds || [])) {
-      const prev = await findRecent({ root: LEDGER_ROOT, shop: store.shop, goodsId, action: "platform-enroll", targetId: CFG.activityId, sinceDays: CFG.duplicateDays || 90 });
+      const prev = await findRecent({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, goodsId, action: "platform-enroll", targetId: CFG.activityId, sinceDays: CFG.duplicateDays || 90 });
       if (prev && prev.result === "success") addIssue("duplicate_operation", `商品 ${goodsId} 已于 ${prev.timeLocal || prev.time} 报名活动 ${prev.target || prev.targetId}；如确需重复，设置 allowRepeat:true`);
     }
   }
@@ -146,12 +146,12 @@ async function recordStoreResult(store, result) {
   const evidence = path.join(RESULT_DIR, store.shop + ".json");
   if (mode === "platform-enroll" && result.submitted === true) {
     for (const goodsId of (CFG.goodsIds || [])) {
-      await appendOperation({ root: LEDGER_ROOT, shop: store.shop, action: "platform-enroll", goodsId, goodsName: result.record && result.record.goodsName, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "未报名", after: (result.record && result.record.status) || "已提交", result: "success", runId: RUN_ID, evidence });
+      await appendOperation({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "platform-enroll", goodsId, goodsName: result.record && result.record.goodsName, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "未报名", after: (result.record && result.record.status) || "已提交", result: "success", runId: RUN_ID, evidence });
     }
   }
   if (mode === "platform-cancel" && result.status === "done" && Array.isArray(result.canceled)) {
     for (const c of result.canceled.filter((x) => x.canceled)) {
-      await appendOperation({ root: LEDGER_ROOT, shop: store.shop, action: "platform-cancel", goodsId: c.goodsId, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "已报名", after: "活动下线", result: "success", runId: RUN_ID, evidence });
+      await appendOperation({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "platform-cancel", goodsId: c.goodsId, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "已报名", after: "活动下线", result: "success", runId: RUN_ID, evidence });
     }
   }
 }

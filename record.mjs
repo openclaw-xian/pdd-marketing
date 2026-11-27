@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 
+const DEFAULT_SKILL = "pdd-marketing";
+
 export function resolveLedgerRoot(cfg = {}) {
   return String(cfg.ledgerRoot || process.env.PDD_LEDGER_ROOT || path.join(process.env.USERPROFILE || os.homedir(), "pdd-records")).replace(/\\/g, "/").replace(/\/$/, "");
 }
@@ -11,8 +13,10 @@ function safeName(s) {
   return String(s || "unknown").replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_");
 }
 
-export async function appendOperation({ root, shop, action, goodsId, goodsName, targetId, target, before, after, result, runId, evidence, repeatOf }) {
-  const time = new Date().toISOString();
+export async function appendOperation({ root, skill = DEFAULT_SKILL, shop, action, goodsId, goodsName, targetId, target, before, after, result, runId, evidence, repeatOf }) {
+  const now = new Date();
+  const time = now.toISOString();
+  const timeLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
   const record = {
     recordId: `${runId || "run"}-${goodsId || "goods"}-${Date.now()}`,
     time, timeLocal, shop, action, goodsId: String(goodsId || ""), goodsName: goodsName || "",
@@ -20,7 +24,7 @@ export async function appendOperation({ root, shop, action, goodsId, goodsName, 
     before: before ?? null, after: after ?? null, result: result || "unknown",
     runId: runId || "", evidence: evidence || "", repeatOf: repeatOf || null,
   };
-  const dir = path.join(root, safeName(shop));
+  const dir = path.join(root, safeName(skill), safeName(shop));
   await fs.mkdir(path.join(dir, "products"), { recursive: true });
   await fs.appendFile(path.join(dir, "operations.jsonl"), JSON.stringify(record) + "\n", "utf8");
   const md = path.join(dir, "products", safeName(goodsId) + ".md");
@@ -31,8 +35,8 @@ export async function appendOperation({ root, shop, action, goodsId, goodsName, 
   return record;
 }
 
-export async function findRecent({ root, shop, goodsId, action, targetId, sinceDays = 90 }) {
-  const file = path.join(root, safeName(shop), "operations.jsonl");
+export async function findRecent({ root, skill = DEFAULT_SKILL, shop, goodsId, action, targetId, sinceDays = 90 }) {
+  const file = path.join(root, safeName(skill), safeName(shop), "operations.jsonl");
   let text = "";
   try { text = await fs.readFile(file, "utf8"); } catch { return null; }
   const since = Date.now() - Number(sinceDays) * 86400000;
