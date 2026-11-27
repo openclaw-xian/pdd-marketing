@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { resolveLedgerRoot, assertCan, recordIntent, recordResult } from "./product-ledger.mjs";
+import { resolveLedgerRoot, assertCan, recordIntent, recordResult, acquireLock, releaseLock } from "./product-ledger.mjs";
 
 const CFG_PATH = process.argv[2];
 if (!CFG_PATH) { console.error("用法: node run.mjs marketing-config.json"); process.exit(2); }
@@ -150,6 +150,11 @@ async function recordStoreResult(store, result) {
       await recordResult({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "platform-enroll", goodsId, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "未报名", after: ok ? { status: (result.record && result.record.status) || "审核中", verified: !!(result.record && result.record.found) } : { status: "failed" }, result: ok ? "success" : "failed", confirmation: { confirmSubmit: true, trafficProtection: CFG.trafficProtection }, runId: RUN_ID, evidence });
     }
   }
+  if (mode === "platform-status" && result.statuses) {
+    for (const [goodsId, st] of Object.entries(result.statuses)) {
+      await recordResult({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "verify", goodsId, targetId: "platform-status", target: "平台状态核实", before: "未知", after: { lifecycleStatus: st.found ? "在售" : "未知", verified: true }, result: "success", runId: RUN_ID, evidence });
+    }
+  }
   if (mode === "platform-cancel" && Array.isArray(result.canceled)) {
     for (const c of result.canceled) {
       await recordResult({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "platform-cancel", goodsId: c.goodsId, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "已报名", after: c.canceled ? { status: "已取消", verified: true } : { status: "failed" }, result: c.canceled ? "success" : "failed", confirmation: { confirmCancel: true }, runId: RUN_ID, evidence });
@@ -158,6 +163,21 @@ async function recordStoreResult(store, result) {
 }
 const done = [];
 for (let i = 0; i < shops.length; i++) {
+  const locks = [];
+  let lockError = null;
+  if (mode === "platform-enroll" || mode === "platform-cancel") {
+    for (const goodsId of (CFG.goodsIds || [])) {
+      const l = await acquireLock({ root: LEDGER_ROOT, shop: shops[i].shop, goodsId });
+      if (!l.ok) { lockError = "product_locked:" + goodsId; break; }
+      locks.push(l);
+    }
+  }
+  if (lockError) {
+    done.push({ shop: shops[i].shop, result: { status: "failed", error: lockError }, wallSec: 0 });
+    console.log("DONE " + shops[i].shop + " status=failed err=" + lockError);
+    continue;
+  }
+  try {
   if (mode === "platform-enroll" && CFG.confirmSubmit === true) {
     for (const goodsId of (CFG.goodsIds || [])) await recordIntent({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: shops[i].shop, goodsId, action: "platform-enroll", targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "未报名", confirmation: { confirmSubmit: true, trafficProtection: CFG.trafficProtection }, runId: RUN_ID, evidence: path.join(RESULT_DIR, shops[i].shop + ".json") });
   }
@@ -167,6 +187,7 @@ for (let i = 0; i < shops.length; i++) {
   const r = await runOne(shops[i], i); done.push(r);
   try { await recordStoreResult(shops[i], r.result); } catch (e) { console.error("RECORD_FAILED " + (e && e.message || e)); }
   console.log("DONE " + r.shop + " status=" + (r.result.status || "?") + " wall=" + r.wallSec + "s" + (r.result.error ? " err=" + r.result.error : ""));
+  } finally { for (const l of locks) await releaseLock(l); }
 }
 const report = { runId: RUN_ID, mode, recordRoot: RECORD_ROOT, ledgerRoot: LEDGER_ROOT, stores: done.map((d) => ({ shop: d.shop, wallSec: d.wallSec, ...d.result })) };
 await fs.writeFile(path.join(RUN_DIR, "report.json"), JSON.stringify(report, null, 1), "utf8");
