@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.43 — 2026-11-27
+
+- 平台活动报名前强制确认流量保护：`confirmSubmit:true` 时必须显式 `trafficProtection: "on" | "off"`，否则返回 `traffic_protection_required`，不提交。
+- `platform-enroll` 不再默认把流量保护设为 on。
+- 文档补充：报名前必须问流量保护开/关和最高降价金额。
+
 ## 0.9.42 — 2026-11-27
 
 - `platform-cancel` 默认只扫描第 1 页，不再从 1 翻到 20 页；找到全部目标商品即停止。

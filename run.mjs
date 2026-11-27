@@ -31,6 +31,7 @@ if (mode === "platform-preview" || mode === "platform-search" || mode === "platf
   if (!CFG.activityType) addIssue("activity_type_missing", "需要 activityType");
   if ((mode === "platform-preview" || mode === "platform-search" || mode === "platform-enroll") && (!Array.isArray(CFG.goodsIds) || !CFG.goodsIds.length)) addIssue("goods_ids_missing", "platform-preview/platform-search 需要 goodsIds");
 }
+if (mode === "platform-enroll" && CFG.confirmSubmit === true && !["on", "off"].includes(String(CFG.trafficProtection || ""))) addIssue("traffic_protection_required", "报名前必须确认流量保护：trafficProtection 设为 on 或 off");
 if (mode === "coupon-create") {
   if (!CFG.couponType) addIssue("coupon_type_missing", "coupon-create 需要 couponType");
   const storeWide = CFG.couponType === "店铺关注券" && ["all", "全店", "store"].includes(String(CFG.followScope || "").toLowerCase());
@@ -114,7 +115,7 @@ async function runOne(store, i) {
     selectOnly: CFG.selectOnly === true,
     expandSkus: CFG.expandSkus === true,
     confirmSubmit: CFG.confirmSubmit === true,
-    trafficProtection: CFG.trafficProtection || "on",
+    trafficProtection: CFG.trafficProtection || null,
     recordRoot: CFG.recordRoot,
     resultPath: path.join(RESULT_DIR, store.shop + ".json"),
     logPath: path.join(LOG_DIR, store.shop + ".log"),

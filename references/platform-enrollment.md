@@ -460,3 +460,10 @@
 - 虚拟表格在展开/滚动后可能重渲染，已采集的 ID 要单独保存，不能依赖当前 DOM 行数。
 - 平台活动列表本身还有分页问题，`activity-list` 尚未保证 102 条全量。
 - 本文件只覆盖平台活动报名；优惠券、店铺活动创建另有流程。
+
+
+## 报名前必须确认流量保护
+
+- 不得默认替用户开启/关闭。
+- preview 后单独问：流量保护 `on` 还是 `off`、最高降价金额是否接受。
+- `confirmSubmit:true` 时必须显式提供 `trafficProtection: "on" | "off"`，否则 run.mjs 返回 `traffic_protection_required`，不打开报名页。

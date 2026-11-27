@@ -351,7 +351,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 所有真实写操作（报名、提交、取消）必须通过 skill 运行模式执行：
 
-- `platform-enroll` 报名
+- `platform-enroll` 报名：提交前必须由用户确认流量保护 `on/off` 和最高降价金额；未确认不允许 `confirmSubmit:true`
 - `platform-cancel` 取消报名（`confirmCancel:true` 才执行）
 - 取消细节见 references/cancel-enrollment.md
 - 禁止 agent 用临时浏览器脚本绕过 skill 直接点确认提交
