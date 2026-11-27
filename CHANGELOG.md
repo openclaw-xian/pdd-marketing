@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.42 — 2026-11-27
+
+- `platform-cancel` 默认只扫描第 1 页，不再从 1 翻到 20 页；找到全部目标商品即停止。
+- 新增 `cancelMaxPages` 配置：需要找历史记录时再显式设置，默认 1。
+
 ## 0.9.41 — 2026-11-27
 
 - 新增 `platform-cancel`：按活动名/activityId + goodsIds 在报名记录页取消；`confirmCancel:true` 才执行。

@@ -79,6 +79,7 @@ async function runOne(store, i) {
     activityType: CFG.activityType,
     activityName: CFG.activityName || null,
     confirmCancel: CFG.confirmCancel === true,
+    cancelMaxPages: CFG.cancelMaxPages != null ? Number(CFG.cancelMaxPages) : 1,
     activityDays: CFG.activityDays != null ? Number(CFG.activityDays) : 7,
     autoCreate: CFG.autoCreate !== false,
     externalNote: CFG.externalNote !== false,

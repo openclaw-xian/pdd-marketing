@@ -1162,19 +1162,39 @@ async function platformInventory() {
 }
 async function dismissRecordNotices() {
   for (let i = 0; i < 3; i++) {
-    const targets = await page.evaluate(() => {
+    const info = await page.evaluate(() => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
       const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-      return [...document.querySelectorAll(".ImportantList_close__d0eKb, [class*=ImportantList_close]")].filter(vis).map(el => {
-        const r = el.getBoundingClientRect();
-        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
-      });
+      const pops = [...document.querySelectorAll("div")].filter(x => vis(x) && t(x).includes("新消息"));
+      if (!pops.length) return { done: true };
+      pops.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return ra.width * ra.height - rb.width * rb.height; });
+      const pop = pops[0];
+      const x = [...pop.querySelectorAll("i,span,div,button")].filter(el => /close/i.test(String(el.className || "")) || t(el) === "×")[0];
+      const r = (x || pop).getBoundingClientRect();
+      return { done: false, x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
     });
-    if (!targets.length) break;
-    for (const t of targets) { await page.mouse.click(t.x, t.y); await page.waitForTimeout(300); }
+    if (info.done) return;
+    await page.mouse.click(info.x, info.y);
+    await page.evaluate(() => {
+      const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+      const pops = [...document.querySelectorAll("div")].filter(x => x.offsetParent && t(x).includes("新消息"));
+      for (const pop of pops) {
+        const x = [...pop.querySelectorAll("i,span,div,button")].filter(el => /close/i.test(String(el.className || "")))[0];
+        if (x && x.parentElement) x.parentElement.click();
+      }
+    });
     await page.waitForTimeout(500);
   }
-  await page.keyboard.press("Escape").catch(() => {});
-  await page.waitForTimeout(300);
+  const hidden = await page.evaluate(() => {
+    const t = (x) => x ? String(x.innerText || x.textContent || "").trim() : "";
+    const pops = [...document.querySelectorAll("div")].filter(x => x.offsetParent && t(x).includes("新消息"));
+    for (const pop of pops) {
+      const box = pop.closest("[class*=ImportantList]") || pop;
+      box.style.display = "none";
+    }
+    return pops.length;
+  });
+  log("record_notices_hidden", hidden);
 }
 
 async function platformCancel() {
