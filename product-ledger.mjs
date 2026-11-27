@@ -9,7 +9,7 @@ const STALE_HOURS = 24;
 const PENDING_BLOCK_MIN = 30;
 const WRITE_ACTIONS = new Set(["platform-enroll", "platform-cancel", "delist", "coupon-create", "relist"]);
 export function resolveLedgerRoot(cfg = {}) {
-  return String(cfg.ledgerRoot || process.env.PDD_LEDGER_ROOT || path.join(process.env.USERPROFILE || os.homedir(), "店铺运营日志")).replace(/\\/g, "/").replace(/\/$/, "");
+  return String(cfg.ledgerRoot || process.env.PDD_LEDGER_ROOT || "").replace(/\\/g, "/").replace(/\/$/, "");
 }
 function safeName(s) { return String(s || "unknown").replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_"); }
 function pad(n) { return String(n).padStart(2, "0"); }

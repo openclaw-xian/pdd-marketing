@@ -1197,6 +1197,19 @@ async function dismissRecordNotices() {
   log("record_notices_hidden", hidden);
 }
 
+async function scrollRecordTop() {
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    const els = [...document.querySelectorAll("*")].filter(x => {
+      const st = getComputedStyle(x);
+      return /(auto|scroll)/.test(st.overflowY) && x.scrollHeight > x.clientHeight + 40;
+    });
+    els.sort((a, b) => b.scrollHeight - a.scrollHeight);
+    for (const el of els) el.scrollTop = 0;
+  });
+  await page.waitForTimeout(800);
+}
+
 async function platformCancel() {
   const ids = (JOB.goodsIds || []).map(String).filter(Boolean);
   const name = String(JOB.activityName || "").trim();

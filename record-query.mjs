@@ -16,7 +16,9 @@ if (args.help || (!args.goods && !args.shop)) {
   console.log("用法: node record-query.mjs --shop <店铺> [--goods <商品ID>] [--root <店铺运营日志>] [--days 90] [--action platform-enroll] [--skill pdd-marketing] [--json]");
   process.exit(0);
 }
-const root = String(args.root || process.env.PDD_LEDGER_ROOT || path.join(process.env.USERPROFILE || os.homedir(), "店铺运营日志")).replace(/\\/g, "/");
+const rootArg = String(args.root || process.env.PDD_LEDGER_ROOT || "").replace(/\\/g, "/");
+if (!rootArg) { console.error("请指定 --root <店铺运营日志目录>，不要默认 C 盘"); process.exit(2); }
+const root = rootArg;
 const days = Number(args.days || 90);
 const since = Date.now() - days * 86400000;
 const shop = args.shop ? String(args.shop) : null;
