@@ -50,3 +50,7 @@ node run.mjs marketing-config.json
 ## 新会话交接
 
 任何 agent 使用本 skill 前先读 `references/operation-ledger.md`，用 `record-query.mjs` 查目标商品历史；操作完成后必须写账本。新会话不靠记忆，账本是唯一事实来源。
+
+## 商品主档
+
+商品事件统一写 `店铺运营日志/商品/<店铺>/<商品ID>/`，所有 skill 共享商品档案；下架商品会被 `assertCan` 阻止报名/编辑。操作前写 intent，操作后写 result。

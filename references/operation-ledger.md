@@ -1,78 +1,92 @@
-# 操作账本：新会话交接协议
+# 商品主档与店铺运营日志
 
 ## 目的
 
-agent 不靠会话记忆，靠账本知道“谁在什么时候对哪个商品做了什么”。新开会话、换 agent、换机器，只要账本在，就能接着干，不会重复报名/重复上架。
+所有 skill 不靠会话记忆，靠同一份商品档案知道商品当前状态，避免“已下架还去报名/编辑”。
 
-## 任何 agent 开始前必做
-
-1. 读 `SKILL.md` 和本文件。
-2. 确定账本目录 `ledgerRoot`：配置 > `PDD_LEDGER_ROOT` > `%USERPROFILE%/店铺运营日志`。
-3. 查目标商品历史：
-
-```bash
-node record-query.mjs --root "<用户指定目录>/店铺运营日志" --skill pdd-marketing --shop <店铺> --goods <商品ID>
-```
-
-4. 查同店铺 + 同商品 + 同动作 + 同活动/券是否已经成功做过。
-5. 有成功记录：先告诉用户“已于某时间做过”，确认后才重复；配置 `allowRepeat:true` 才允许。
-6. 操作完成后必须落账，不能只回复聊天。
-
-## 只记什么
-
-只记实际操作：
-
-- 平台活动报名/取消
-- 店铺活动创建/结束
-- 优惠券创建/结束
-- 商品编辑/改价/改库存/换图/提交
-- 上架/下架
-- 物流地址/模板修改
-
-预览、只读查询不记；但预览后真的提交，要把提交前价格一并记入。
-
-## 记录结构
+## 目录
 
 ```text
-<ledgerRoot>/<店铺>/
-  operations.jsonl          # 一行一次操作，只追加
-  products/<商品ID>.md      # 商品历史，给人看
+<用户指定目录>/店铺运营日志/
+  商品/
+    鱼越贴饰/
+      1027533959945/
+        商品档案.json      # 当前状态
+        操作记录.jsonl     # 所有 skill 的商品事件
+        商品历史.md        # 给人看的时间线
+  店铺/
+    鱼越贴饰/
+      物流设置/
+      账单导出/
+      订单导出/
+      客服绩效/
+  索引/
+    商品索引.json
 ```
 
-`operations.jsonl` 字段：
+商品事件统一写 `商品/<店铺>/<商品ID>/`，每条带 `skill` 字段，不再按 skill 拆商品账本。
 
-- `time` / `timeLocal`
-- `shop`
-- `action`
-- `goodsId` / `goodsName`
-- `targetId` / `target`（activityId、券名、活动名等）
-- `before` / `after`
-- `result`（success/failed/cancelled）
-- `runId`
-- `evidence`（报告/截图路径）
-- `repeatOf`（重复操作时指向原记录）
+## 商品档案
+
+```json
+{
+  "schemaVersion": 1,
+  "shop": "鱼越贴饰",
+  "goodsId": "1027533959945",
+  "goodsName": "商品名",
+  "lifecycleStatus": "在售",
+  "activeActivities": [
+    { "type": "platform", "activityId": "20981", "status": "审核中" }
+  ],
+  "lastPrice": 29.90,
+  "stock": 9999,
+  "lastVerifiedAt": "2026-11-27 14:10:00",
+  "stale": false,
+  "lastAction": "platform-enroll",
+  "lastTime": "2026-11-27 14:10:00"
+}
+```
+
+状态不是单一字段：生命周期、活动状态、价格库存、数据新鲜度分开。
+
+## 操作前必须 assertCan
+
+```js
+assertCan({ root, shop, goodsId, action: "platform-enroll", targetId: "20981" })
+```
+
+返回：
+
+- `allowed`
+- `blocked: product_delisted`
+- `blocked: duplicate_operation`
+- `blocked: already_delisted`
+- `warnings: ["state_stale", "activity_active"]`
+
+规则：
+
+- `已下架` + 报名/编辑/建券 → 阻止
+- `已下架` + 再下架 → 阻止
+- 已报名同活动 + 再报名 → 阻止
+- 有进行中活动 + 下架 → 警告
+
+## 两阶段记录
+
+操作前写 `intent`，操作后写 `result`：
+
+```text
+phase=intent, result=pending
+phase=result, result=success|failed|unknown
+```
+
+如果看到长时间 `pending`，先回读平台，不能直接重做。网络超时记 `unknown`，必须核实。
 
 ## 查询
 
 ```bash
-node record-query.mjs --shop <店铺> --goods <商品ID>
-node record-query.mjs --root "<用户指定目录>/店铺运营日志" --skill pdd-marketing --shop <店铺> --days 7
-node record-query.mjs --root "<用户指定目录>/店铺运营日志" --all --goods <商品ID> --action platform-enroll --json
+node record-query.mjs --root "<用户指定目录>/店铺运营日志" --shop <店铺> --goods <商品ID>
 ```
 
-## 汇报
+## 店铺级操作
 
-操作结束给用户的摘要必须包含：
-
-- 时间
-- 店铺
-- 动作
-- 商品 ID / 商品名
-- 活动/券/对象
-- before → after
-- 成功/失败
-- 账本记录路径
-
-## 隐私
-
-账本只放用户数据目录，不进公开仓库；公开文档用 `<店铺>`、`<商品ID>`、`<profile>` 占位。
+物流、账单、订单、客服不是商品级，放 `店铺/<店铺>/`；不要硬塞 `goodsId`。

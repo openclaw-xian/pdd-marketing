@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { resolveLedgerRoot, appendOperation, findRecent } from "./record.mjs";
+import { resolveLedgerRoot, assertCan, recordIntent, recordResult } from "./product-ledger.mjs";
 
 const CFG_PATH = process.argv[2];
 if (!CFG_PATH) { console.error("用法: node run.mjs marketing-config.json"); process.exit(2); }
@@ -70,8 +70,8 @@ if (mode === "coupon-close") {
 if (mode === "platform-enroll" && CFG.confirmSubmit === true && CFG.allowRepeat !== true) {
   for (const store of shops) {
     for (const goodsId of (CFG.goodsIds || [])) {
-      const prev = await findRecent({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, goodsId, action: "platform-enroll", targetId: CFG.activityId, sinceDays: CFG.duplicateDays || 90 });
-      if (prev && prev.result === "success") addIssue("duplicate_operation", `商品 ${goodsId} 已于 ${prev.timeLocal || prev.time} 报名活动 ${prev.target || prev.targetId}；如确需重复，设置 allowRepeat:true`);
+      const chk = await assertCan({ root: LEDGER_ROOT, shop: store.shop, goodsId, action: "platform-enroll", targetId: CFG.activityId });
+      if (!chk.allowed) addIssue(chk.blocked, `商品 ${goodsId} 当前状态 ${chk.state.lifecycleStatus}，不能报名活动 ${CFG.activityId}`);
     }
   }
 }
@@ -144,19 +144,26 @@ async function runOne(store, i) {
 }
 async function recordStoreResult(store, result) {
   const evidence = path.join(RESULT_DIR, store.shop + ".json");
-  if (mode === "platform-enroll" && result.submitted === true) {
+  if (mode === "platform-enroll") {
+    const ok = result.submitted === true;
     for (const goodsId of (CFG.goodsIds || [])) {
-      await appendOperation({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "platform-enroll", goodsId, goodsName: result.record && result.record.goodsName, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "未报名", after: (result.record && result.record.status) || "已提交", result: "success", runId: RUN_ID, evidence });
+      await recordResult({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "platform-enroll", goodsId, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "未报名", after: ok ? { status: (result.record && result.record.status) || "审核中", verified: !!(result.record && result.record.found) } : { status: "failed" }, result: ok ? "success" : "failed", confirmation: { confirmSubmit: true, trafficProtection: CFG.trafficProtection }, runId: RUN_ID, evidence });
     }
   }
-  if (mode === "platform-cancel" && result.status === "done" && Array.isArray(result.canceled)) {
-    for (const c of result.canceled.filter((x) => x.canceled)) {
-      await appendOperation({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "platform-cancel", goodsId: c.goodsId, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "已报名", after: "活动下线", result: "success", runId: RUN_ID, evidence });
+  if (mode === "platform-cancel" && Array.isArray(result.canceled)) {
+    for (const c of result.canceled) {
+      await recordResult({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: store.shop, action: "platform-cancel", goodsId: c.goodsId, targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "已报名", after: c.canceled ? { status: "已取消", verified: true } : { status: "failed" }, result: c.canceled ? "success" : "failed", confirmation: { confirmCancel: true }, runId: RUN_ID, evidence });
     }
   }
 }
 const done = [];
 for (let i = 0; i < shops.length; i++) {
+  if (mode === "platform-enroll" && CFG.confirmSubmit === true) {
+    for (const goodsId of (CFG.goodsIds || [])) await recordIntent({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: shops[i].shop, goodsId, action: "platform-enroll", targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "未报名", confirmation: { confirmSubmit: true, trafficProtection: CFG.trafficProtection }, runId: RUN_ID, evidence: path.join(RESULT_DIR, shops[i].shop + ".json") });
+  }
+  if (mode === "platform-cancel" && CFG.confirmCancel === true) {
+    for (const goodsId of (CFG.goodsIds || [])) await recordIntent({ root: LEDGER_ROOT, skill: "pdd-marketing", shop: shops[i].shop, goodsId, action: "platform-cancel", targetId: CFG.activityId, target: CFG.activityName || `活动 ${CFG.activityId}`, before: "已报名", confirmation: { confirmCancel: true }, runId: RUN_ID, evidence: path.join(RESULT_DIR, shops[i].shop + ".json") });
+  }
   const r = await runOne(shops[i], i); done.push(r);
   try { await recordStoreResult(shops[i], r.result); } catch (e) { console.error("RECORD_FAILED " + (e && e.message || e)); }
   console.log("DONE " + r.shop + " status=" + (r.result.status || "?") + " wall=" + r.wallSec + "s" + (r.result.error ? " err=" + r.result.error : ""));
