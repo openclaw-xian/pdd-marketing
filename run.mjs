@@ -24,6 +24,7 @@ const shops = (CFG.shops || []).map((s) => typeof s === "string" ? { shop: s } :
 const issues = [];
 const addIssue = (code, q) => issues.push({ code, question: q });
 const LEDGER_ROOT = resolveLedgerRoot(CFG);
+if (!LEDGER_ROOT) addIssue("ledger_root_required", "首次使用请指定运营日志目录 ledgerRoot，不要默认 C 盘");
 
 if (!["activity-list", "store-activity-list", "store-activity-create", "store-activity-close", "coupon-types", "coupon-audit", "coupon-create", "coupon-list", "coupon-close", "platform-preview", "platform-search", "platform-scan", "platform-enroll", "platform-cancel", "platform-record", "platform-status", "platform-inventory"].includes(mode)) addIssue("mode_invalid", "当前只读模式：activity-list / store-activity-list / coupon-types / coupon-audit / platform-preview");
 if (!shops.length) addIssue("shops_missing", "config 需要 shops");

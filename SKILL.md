@@ -613,3 +613,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - 有进行中活动 → 下架警告
 
 操作前写 `intent`，操作后写 `result`；超时记 `unknown`，必须回读平台。
+
+## 首次使用
+
+必须询问用户运营日志目录并配置 `ledgerRoot`；未配置返回 `ledger_root_required`，不默认 C 盘，不创建目录。

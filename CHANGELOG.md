@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.54 — 2026-11-27
+
+- 首次使用必须指定 `ledgerRoot`，未配置返回 `ledger_root_required`，不再默认 C 盘。
+- `record-query.mjs` 必须传 `--root` 或 `PDD_LEDGER_ROOT`。
+
 ## 0.9.53 — 2026-11-27
 
 - pending intent 改为任何未完成操作都拦截（operation_pending），不再只拦同动作。

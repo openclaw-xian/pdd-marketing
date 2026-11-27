@@ -54,3 +54,7 @@ node run.mjs marketing-config.json
 ## 商品主档
 
 商品事件统一写 `店铺运营日志/商品/<店铺>/<商品ID>/`，所有 skill 共享商品档案；下架商品会被 `assertCan` 阻止报名/编辑。操作前写 intent，操作后写 result。
+
+## 首次使用
+
+必须询问用户运营日志目录并配置 `ledgerRoot`；未配置返回 `ledger_root_required`，不默认 C 盘，不创建目录。
