@@ -571,16 +571,17 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 | 模式 | 必填/关键字段 | 门控 | 退出码 |
 |---|---|---|---|
 | activity-list / store-activity-list / coupon-list / coupon-types / coupon-audit | shops、recordRoot | 只读 | 0 |
-| store-activity-create | activityName、items[].goodsId、items[].discount | dryRun、confirmCreate、confirmLowPrice | 0/3/5 |
-| store-activity-close | activityName | confirmClose | 0/3/5 |
-| coupon-create | couponType、faceAmount 或 items、issueCount；couponName 可选 | confirmCreate、confirmLowPrice | 0/3/5 |
-| coupon-close | goodsIds 或 couponName | confirmClose | 0/3/5 |
-| platform-preview / search / scan / record / status / inventory | activityId、activityType、goodsIds | 只读 | 0/3/5 |
-| platform-enroll | activityId、activityType、goodsIds、trafficProtection | confirmSubmit | 0/3/5 |
-| platform-cancel | activityName 或 activityId、goodsIds | confirmCancel | 0/3/5 |
+| store-activity-create | activityName、items[].goodsId、items[].discount | dryRun、confirmCreate、confirmLowPrice | 0/3/4/5 |
+| store-activity-close | activityName | confirmClose | 0/3/4/5 |
+| coupon-create | couponType、faceAmount 或 items、issueCount；couponName 可选 | confirmCreate、confirmLowPrice | 0/3/4/5 |
+| coupon-close | goodsIds 或 couponName | confirmClose | 0/3/4/5 |
+| platform-preview / search / scan / record / status / inventory | activityId、activityType、goodsIds | 只读 | 0/3/4/5 |
+| platform-enroll | activityId、activityType、goodsIds、trafficProtection | confirmSubmit | 0/3/4/5 |
+| platform-cancel | activityName 或 activityId、goodsIds | confirmCancel | 0/3/4/5 |
 
 - `0`：完成/预览
 - `3`：需要用户输入或 preflight
+- `4`：needs（平台拦截/驳回/待核实）
 - `5`：失败
 
 ## 不可报名的结论口径

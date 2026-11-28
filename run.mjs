@@ -194,6 +194,12 @@ for (let i = 0; i < shops.length; i++) {
 const report = { runId: RUN_ID, mode, recordRoot: RECORD_ROOT, ledgerRoot: LEDGER_ROOT, stores: done.map((d) => ({ shop: d.shop, wallSec: d.wallSec, ...d.result })) };
 await fs.writeFile(path.join(RUN_DIR, "report.json"), JSON.stringify(report, null, 1), "utf8");
 console.log("REPORT=" + path.join(RUN_DIR, "report.json"));
+const blocked = report.stores.filter((s) => s.status === "needs" || s.needs);
+if (blocked.length) {
+  console.log("NEEDS");
+  for (const s of blocked) console.log("NEEDS " + s.shop + ": " + (s.message || s.error || "需要用户确认"));
+  process.exit(4);
+}
 const needs = report.stores.filter((s) => s.status === "needs_user_input");
 if (needs.length) {
   console.log("NEEDS_USER_INPUT");
