@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.59 — 2026-11-28
+
+- A2 真修：`statusLookup` 增加 `eligible`/`reasons`，`ineligible` 时 status=`不可报名`。
+- A5 真修：`requireActivityPreflight` 增加 `dismissBlockingModals()`。
+- 修正速查表：移除不存在的退出码 4；`coupon-create` 的 `couponName` 标为可选。
+- 定稿行对齐 0.9.59；滚动步长统一为 180px。
+
 ## 0.9.58 — 2026-11-28
 
 - B1：合并重复铁律，保留「执行铁律」为唯一主规则，其余段落改为引用 + 独有信息。

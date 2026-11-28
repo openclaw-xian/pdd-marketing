@@ -1133,11 +1133,14 @@ async function statusLookup(inputIds) {
     const res=await page.evaluate((id)=>{
       const txt=document.body.innerText||"";
       const active=/商品已生效当前活动|无需重复报名/.test(txt);
-      const ineligible=/不可报名商品/.test(txt)&&txt.includes(id);
       const found=txt.includes(id);
-      return {found,active,ineligible,text:txt.slice(-800)};
+      const reasons=txt.split(/\n+/).map((x)=>x.trim()).filter((x)=>/不符合报名条件|暂不符合|不可报名|原因|未满|不满足/.test(x)).slice(0,5);
+      const ineligible=(/不可报名商品/.test(txt)&&txt.includes(id))||reasons.length>0;
+      return {found,active,ineligible,reasons,text:txt.slice(-800)};
     },id);
-    statuses[id]={...res,status:res.active?"已生效当前活动":res.found?"可报名":"未找到"};
+    const eligible=res.active||(res.found&&!res.ineligible);
+    const status=res.active?"已生效当前活动":res.ineligible?"不可报名":res.found?"可报名":"未找到";
+    statuses[id]={...res,eligible,status};
     // close popup if there is a 取消 button
     await page.evaluate(()=>{
       const t=(x)=>(x?(x.innerText||x.textContent||"").trim():"");

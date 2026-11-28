@@ -239,7 +239,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 正确做法：
 
 1. 从当前页面位置开始
-2. 每次只滚动 400～600px
+2. 每次只滚动 180px
 3. 每滚一次都重新扫描全部 `tr`
 4. 按精确商品 ID 匹配行
 5. 找到后滚动到行中间再勾选
@@ -264,7 +264,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 2. 等表格加载/重渲染稳定
 3. 扫描全部 `tr`，按行内精确匹配 `ID: 商品ID`
 4. 不要只看当前视口
-5. 未命中则每次滚动 350px 左右，再重新扫描
+5. 未命中则每次滚动 180px 左右，再重新扫描
 6. 找到后滚动到行中间
 7. 在该商品组里找「展开更多规格」，点最后一个 span/svg
 8. 校验出现「收起」
@@ -480,7 +480,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 ## 状态
 
-**定稿：0.9.57（2026-11-28）。**
+**定稿：0.9.59（2026-11-28）。**
 
 已交付并实测：
 - 优惠券三种：商品立减券、店铺关注券、惊喜券
@@ -571,17 +571,16 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 | 模式 | 必填/关键字段 | 门控 | 退出码 |
 |---|---|---|---|
 | activity-list / store-activity-list / coupon-list / coupon-types / coupon-audit | shops、recordRoot | 只读 | 0 |
-| store-activity-create | activityName、items[].goodsId、items[].discount | dryRun、confirmCreate、confirmLowPrice | 0/3/4/5 |
+| store-activity-create | activityName、items[].goodsId、items[].discount | dryRun、confirmCreate、confirmLowPrice | 0/3/5 |
 | store-activity-close | activityName | confirmClose | 0/3/5 |
-| coupon-create | couponType、couponName、faceAmount、issueCount | confirmCreate、confirmLowPrice | 0/3/4/5 |
+| coupon-create | couponType、faceAmount 或 items、issueCount；couponName 可选 | confirmCreate、confirmLowPrice | 0/3/5 |
 | coupon-close | goodsIds 或 couponName | confirmClose | 0/3/5 |
 | platform-preview / search / scan / record / status / inventory | activityId、activityType、goodsIds | 只读 | 0/3/5 |
-| platform-enroll | activityId、activityType、goodsIds、trafficProtection | confirmSubmit | 0/3/4/5 |
+| platform-enroll | activityId、activityType、goodsIds、trafficProtection | confirmSubmit | 0/3/5 |
 | platform-cancel | activityName 或 activityId、goodsIds | confirmCancel | 0/3/5 |
 
 - `0`：完成/预览
 - `3`：需要用户输入或 preflight
-- `4`：needs（平台拦截/驳回/待核实）
 - `5`：失败
 
 ## 不可报名的结论口径
