@@ -632,10 +632,10 @@ async function storeActivityCreate() {
     }
   }
   if (missing.length) {
-    return { status: "needs_user_input", needs: true, error: "store_activity_discount_required", message: `请为以下商品指定折扣（页面推荐值仅供参考）：${missing.map(x => `${x.goodsName}（ID ${x.goodsId}）推荐 ${x.recommendedDiscount} / 范围 ${x.discountRange} / 活动价 ${x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: missing };
+    return { status: "needs_user_input", needs: true, error: "store_activity_discount_required", message: `请为以下商品指定折扣（页面推荐值仅供参考）：${missing.map(x => `${x.goodsName}（ID ${x.goodsId}）推荐 ${x.recommendedDiscount} / 范围 ${x.discountRange} / 活动价 ${x.activityPrice == null ? "待填" : x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: missing };
   }
   if (outOfRange.length) {
-    return { status: "needs_user_input", needs: true, error: "store_activity_discount_out_of_range", message: `以下商品折扣不符合要求：${outOfRange.map(x => `${x.goodsName}（ID ${x.goodsId}）请求 ${x.requestedDiscount} / 允许 ${x.discountRange} / 推荐 ${x.recommendedDiscount} / 活动价 ${x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: outOfRange };
+    return { status: "needs_user_input", needs: true, error: "store_activity_discount_out_of_range", message: `以下商品折扣不符合要求：${outOfRange.map(x => `${x.goodsName}（ID ${x.goodsId}）请求 ${x.requestedDiscount} / 允许 ${x.discountRange} / 推荐 ${x.recommendedDiscount} / 活动价 ${x.activityPrice == null ? "待填" : x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: outOfRange };
   }
   for (const item of items) {
     if (item.discount != null) await storeActivitySetRowField(item.goodsId, "discount", item.discount);

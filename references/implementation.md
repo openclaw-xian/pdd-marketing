@@ -32,7 +32,8 @@ node run.mjs <config.json>
 - `JOB` 里带：`shop`、`profile`、`mode`、`activityId`、`activityType`、`goodsIds`、`couponType`、`couponTypes`、`faceAmount`、`issueCount`、`couponName`、`couponTab`、`extraDiscount`、`surpriseExtraDiscount`、`dryRun`、`confirmCreate`、`keepOpen`、`probeRange`、`recordRoot`、`resultPath`、`logPath`。
 - 退出码：
   - `0`：done / preview
-  - `3`：preflight `needs_user_input`，或 worker 返回 `needs_user_input`
+  - `3`：preflight
+  - `4`：needs（worker 返回 `needs`）
   - `5`：failed
 - 报告：`_runs/marketing-<id>/report.json`，每个店铺的 `results/<店铺>.json` 是 worker 原始结果。
 
@@ -171,7 +172,7 @@ node run.mjs <config.json>
 | `mode_invalid` | 模式不支持 | 3（preflight） |
 | `shop_not_logged_in:<profile>` | profile 找不到/未登录 | 5 |
 | `coupon_type_invalid:<type>` | 券类型不支持 | 5 |
-| `coupon_face_out_of_range` | 面额不在允许区间 | 3（needs_user_input） |
+| `coupon_face_out_of_range` | 面额不在允许区间 | 4（needs） |
 | `coupon_face_invalid:<price>` | 券后价 `--` | 5 |
 | `coupon_fields_not_applied:<values>` | 输入框回读不一致 | 5 |
 | `coupon_extras_not_applied:<detail>` | 额外优惠状态不一致 | 5 |

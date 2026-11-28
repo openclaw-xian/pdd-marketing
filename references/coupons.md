@@ -275,7 +275,7 @@
 - 传 1～100 = 开启并写入该金额
 - `dryRun:true` = 只预览，不点创建
 - **必须显式 `confirmCreate:true` 才会真正创建**；否则即使 `dryRun:false` 也只预览
-- 面额不在平台允许区间时返回 `status:"needs_user_input"`，带 `suggestedRange`，`run.mjs` 退出码 3，不点创建
+- 面额不在平台允许区间时返回 `status:"needs"`，带 `suggestedRange`，`run.mjs` 退出码 4，不点创建
 - 创建后轮询「创建成功」，没确认返回 `failed`，不再假报 done
 - 实测某商品：合法面额 **14～25 元**；13、26、30 都是 `券后价 --`
 - `perPersonLimit`：惊喜券支持 1/2/3 张并回读校验；商品立减券/店铺关注券页面没有该字段，传了会报 `coupon_per_person_not_supported`
