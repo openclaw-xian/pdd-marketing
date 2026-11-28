@@ -601,3 +601,12 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 - `warnings[]` 只在页面显示运费模板等提示时返回，可能为空，不参与阻断。
 - `activityType` 优先从活动卡片「去报名」URL 取；多数活动 `activityType = activityId`，可先试，失败再取 URL。
+
+## 多店铺约定
+
+- 一个 `profile` 只对应一个店铺，`profile` 是唯一身份。
+- `shop` 只用于展示和账本/产物目录，不用于定位登录态。
+- 配置必须显式给 `{ shop, profile }`，不按店铺名猜 profile。
+- 登录、space、操作都按 profile 隔离。
+- profile 缺失/失效 → `shop_not_logged_in` / `login_required`，不自动映射。
+- 账本/产物路径按 shop 分：`<root>/<shop>/...`。
