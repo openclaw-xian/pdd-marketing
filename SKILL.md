@@ -480,7 +480,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 ## 状态
 
-**定稿：0.9.62（2026-11-28）。**
+**定稿：0.9.64（2026-11-28）。**
 
 已交付并实测：
 - 优惠券三种：商品立减券、店铺关注券、惊喜券
@@ -580,14 +580,14 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 | platform-cancel | activityName 或 activityId、goodsIds | confirmCancel | 0/3/4/5 |
 
 - `0`：完成/预览
-- `3`：需要用户输入或 preflight
+- `3`：preflight
 - `4`：needs（平台拦截/驳回/待核实）
 - `5`：失败
 
 ## 不可报名的结论口径
 
 - `active=true`：已生效当前活动
-- `ineligible=true` 或 `reasons[]` 非空：不可报名，原因以 `reasons[]` 为准
+- `reasons[]` 非空：不可报名，原因以 `reasons[]` 为准
 - `found=false`：未找到
 - 主表定位不到但有明确原因：判不可报名，不给报
 

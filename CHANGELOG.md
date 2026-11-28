@@ -29,7 +29,7 @@
 ## 0.9.59 — 2026-11-28
 
 - A2 真修：`statusLookup` 增加 `eligible`/`reasons`，`ineligible` 时 status=`不可报名`。
-- A5 真修：`requireActivityPreflight` 增加 `dismissBlockingModals()`。
+- A5 代码在 0.9.60 补齐；0.9.59 仅完成 A2。
 - 修正速查表：移除不存在的退出码 4；`coupon-create` 的 `couponName` 标为可选。
 - 定稿行对齐 0.9.59；滚动步长统一为 180px。
 

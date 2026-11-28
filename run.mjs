@@ -204,6 +204,6 @@ const needs = report.stores.filter((s) => s.status === "needs_user_input");
 if (needs.length) {
   console.log("NEEDS_USER_INPUT");
   for (const s of needs) console.log("NEEDS " + s.shop + ": " + (s.message || s.error));
-  process.exit(3);
+  process.exit(4);
 }
 if (report.stores.some((s) => s.status === "failed")) process.exit(5);
