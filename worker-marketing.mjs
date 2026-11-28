@@ -1141,9 +1141,13 @@ async function statusLookup(inputIds) {
       const active=/商品已生效当前活动|无需重复报名/.test(rowText)||(!rowText&&/商品已生效当前活动|无需重复报名/.test(body));
       const found=!!row;
       const reasons=rowText.split(/\n+/).map((x)=>x.trim()).filter((x)=>/不符合报名条件|暂不符合|新建规格|未满1天/.test(x)).slice(0,5);
-      const warnings=rowText.split(/\n+/).map((x)=>x.trim()).filter((x)=>/运费模板.*不满足|不满足活动要求|运费模板/.test(x)).slice(0,5);
+      const label=[...document.querySelectorAll("*")].find((x)=>vis(x)&&!x.children.length&&t(x)==="搜索活动商品");
+      let modal=label;
+      for(let i=0;i<8&&modal;i++){ if(t(modal).includes("确认取消")) break; modal=modal.parentElement; }
+      const modalText=modal?t(modal):"";
+      const warnings=modalText.split(/\n+/).map((x)=>x.trim()).filter((x)=>/运费模板.*不满足|不满足活动要求/.test(x)).slice(0,5);
       const ineligible=reasons.length>0;
-      return {found,active,ineligible,reasons,warnings,rowText:rowText.slice(-500),text:body.slice(-400)};
+      return {found,active,ineligible,reasons,warnings,rowText:rowText.slice(-500),modalText:modalText.slice(-500),text:body.slice(-400)};
     },id);
     const eligible=res.active||(res.found&&!res.ineligible);
     const status=res.active?"已生效当前活动":res.ineligible?"不可报名":res.found?"可报名":"未找到";
