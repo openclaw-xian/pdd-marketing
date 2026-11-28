@@ -8,7 +8,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 任何进活动页的操作，包括只读查看 SKU，都必须按顺序执行：
 
 1. 关闭「搜索活动商品」弹窗（搜索只查资格，查完取消）
-2. 滚到页面底部，点「点击加载更多商品」直到没有
+2. 按 180px 小步滚动到页面底部，点「点击加载更多商品」直到没有
 3. 点表头全选框清空，校验「已选商品 0 个」
 4. 再定位商品、展开规格、读取信息
 5. 选中商品后再次校验：已选数量 = 授权商品数，已选 ID = 授权 ID
@@ -338,7 +338,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - 店铺活动结束：行内「结束」→「确认结束」→「直接结束」
 - 完整说明：[references/store-activity.md](references/store-activity.md)
 - 平台活动：`/act/index`
-  - 102 条活动
+  - 102 条活动（2026-11-27 采集，以页面为准）
   - 大促/百亿/秒杀/首页/潮流/多人团/月卡/9.9/场景券/领券中心/新人/品牌/偏远/医药/省钱月卡/供货/超级晚8
   - activityId + 报名价条件 + 权益 + 选品报名/全店报名
 
@@ -541,7 +541,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 ## 状态
 
-**定稿：0.9.31（2026-11-26）。**
+**定稿：0.9.57（2026-11-28）。**
 
 已交付并实测：
 - 优惠券三种：商品立减券、店铺关注券、惊喜券
@@ -562,7 +562,7 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 已知限制：
 - 全店券显示名固定「全店商品店铺关注券」
 - 多商品券每个商品一行，`closeAll` 按券名关闭
-- 平台活动列表 102 条全量分页仍以可见主列表 75 条/4 页为准
+- 平台活动列表 102 条全量分页仍以可见主列表 75 条/4 页为准（2026-11-27 采集，以页面为准）
 - 店铺活动不做 Excel 批量、2/3 梯度、生效设置每日时间段、自定义起止时间、活动编辑、批量结束、关闭自动创建、规格级折扣、列表结构化/全量分页、数据/详情页读取；限时活动时间用页面默认约 7 天
 - `store-activity-close` 只查当前页，不做逐页查找；多商品活动一行一个商品，按活动名会 ambiguous，需带 goodsId 逐个结束（结束一行只结束该行；批量结束不做）
 
@@ -626,3 +626,28 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 ## 共享账本配置
 
 首次指定 `ledgerRoot` 后会写入共享配置（默认 `%USERPROFILE%/.config/pdd/ledger.json`，可用 `PDD_LEDGER_CONFIG` 覆盖）。其他 skill 自动读取，不再重复询问；配置里只存目录指针，不存业务数据。
+
+## 模式速查表
+
+| 模式 | 必填/关键字段 | 门控 | 退出码 |
+|---|---|---|---|
+| activity-list / store-activity-list / coupon-list / coupon-types / coupon-audit | shops、recordRoot | 只读 | 0 |
+| store-activity-create | activityName、items[].goodsId、items[].discount | dryRun、confirmCreate、confirmLowPrice | 0/3/4/5 |
+| store-activity-close | activityName | confirmClose | 0/3/5 |
+| coupon-create | couponType、couponName、faceAmount、issueCount | confirmCreate、confirmLowPrice | 0/3/4/5 |
+| coupon-close | goodsIds 或 couponName | confirmClose | 0/3/5 |
+| platform-preview / search / scan / record / status / inventory | activityId、activityType、goodsIds | 只读 | 0/3/5 |
+| platform-enroll | activityId、activityType、goodsIds、trafficProtection | confirmSubmit | 0/3/4/5 |
+| platform-cancel | activityName 或 activityId、goodsIds | confirmCancel | 0/3/5 |
+
+- `0`：完成/预览
+- `3`：需要用户输入或 preflight
+- `4`：needs（平台拦截/驳回/待核实）
+- `5`：失败
+
+## 不可报名的结论口径
+
+- `active=true`：已生效当前活动
+- `ineligible=true` 或 `reasons[]` 非空：不可报名，原因以 `reasons[]` 为准
+- `found=false`：未找到
+- 主表定位不到但有明确原因：判不可报名，不给报
