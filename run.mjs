@@ -200,7 +200,7 @@ if (blocked.length) {
   for (const s of blocked) console.log("NEEDS " + s.shop + ": " + (s.message || s.error || "需要用户确认"));
   process.exit(4);
 }
-const needs = report.stores.filter((s) => s.status === "needs_user_input");
+const needs = report.stores.filter((s) => s.status === "needs_user_input" || s.status === "needs");
 if (needs.length) {
   console.log("NEEDS_USER_INPUT");
   for (const s of needs) console.log("NEEDS " + s.shop + ": " + (s.message || s.error));

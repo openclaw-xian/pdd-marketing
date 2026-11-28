@@ -632,10 +632,10 @@ async function storeActivityCreate() {
     }
   }
   if (missing.length) {
-    return { status: "needs_user_input", error: "store_activity_discount_required", message: `请为以下商品指定折扣（页面推荐值仅供参考）：${missing.map(x => `${x.goodsName}（ID ${x.goodsId}）推荐 ${x.recommendedDiscount} / 范围 ${x.discountRange} / 活动价 ${x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: missing };
+    return { status: "needs_user_input", needs: true, error: "store_activity_discount_required", message: `请为以下商品指定折扣（页面推荐值仅供参考）：${missing.map(x => `${x.goodsName}（ID ${x.goodsId}）推荐 ${x.recommendedDiscount} / 范围 ${x.discountRange} / 活动价 ${x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: missing };
   }
   if (outOfRange.length) {
-    return { status: "needs_user_input", error: "store_activity_discount_out_of_range", message: `以下商品折扣不符合要求：${outOfRange.map(x => `${x.goodsName}（ID ${x.goodsId}）请求 ${x.requestedDiscount} / 允许 ${x.discountRange} / 推荐 ${x.recommendedDiscount} / 活动价 ${x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: outOfRange };
+    return { status: "needs_user_input", needs: true, error: "store_activity_discount_out_of_range", message: `以下商品折扣不符合要求：${outOfRange.map(x => `${x.goodsName}（ID ${x.goodsId}）请求 ${x.requestedDiscount} / 允许 ${x.discountRange} / 推荐 ${x.recommendedDiscount} / 活动价 ${x.activityPrice}`).join("；")}`, activityType: type, activityName: name, selectedCount: select.selectedCount, items: outOfRange };
   }
   for (const item of items) {
     if (item.discount != null) await storeActivitySetRowField(item.goodsId, "discount", item.discount);
@@ -688,7 +688,7 @@ async function storeActivityCreate() {
         ? `平台提示低价风险，未提交。共 ${warnings.length} 个 SKU：${warningsSummary}。请确认是否继续`
         : "平台提示低价风险，未提交。请查看 warningText 明细后决定是否继续";
       if (JOB.confirmLowPrice !== true) {
-        return { ...preview, status: "needs_user_input", error: "store_activity_low_price_warning", message, warnings, warningsSummary, warningText: text.slice(-2500) };
+        return { ...preview, status: "needs_user_input", needs: true, error: "store_activity_low_price_warning", message, warnings, warningsSummary, warningText: text.slice(-2500) };
       }
       if (!lowPriceConfirmed) {
         const marked = await storeActivityConfirmLowPrice();
@@ -2037,7 +2037,7 @@ async function couponCreate(){
     } catch (e) {
       if (e && e.code === "coupon_face_out_of_range") {
         return {
-          status: "needs_user_input",
+          status: "needs_user_input", needs: true,
           error: e.code,
           message: `券面额 ${item.faceAmount} 元不符合平台要求，建议区间 ${e.details.suggestedRange || "未知"}，请确认面额`,
           type, goodsIds, items, face: item.faceAmount, issue: item.issueCount, couponName: nameApplied || (formDefaults && formDefaults.couponName) || null, perPersonApplied, useDaysApplied, followScopeApplied, claimDaysApplied, formDefaults, validRange: e.details.suggestedRange || "", ...e.details
@@ -2138,7 +2138,7 @@ async function couponCreate(){
         }
       } else {
         const warningsSummary=warnings.map((w,i)=>`${i+1}. ${w.goodsName}（ID ${w.goodsId||"-"}）拼单价 ${w.price} / 活动价 ${w.activityPrice} / 券后价 ${w.couponPrice} / ${w.reason}`).join("；");
-        return {status:"needs_user_input",error:"coupon_low_price_warning",message:`平台提示低价风险，未提交。共 ${warnings.length} 个商品：${warningsSummary}。请确认是否继续`,warningsSummary,warnings,lowPriceButtonInfo,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
+        return {status:"needs_user_input", needs:true,error:"coupon_low_price_warning",message:`平台提示低价风险，未提交。共 ${warnings.length} 个商品：${warningsSummary}。请确认是否继续`,warningsSummary,warnings,lowPriceButtonInfo,type,goodsIds,items,face,issue,couponName:nameApplied||(formDefaults&&formDefaults.couponName)||null,perPersonApplied,useDaysApplied,followScopeApplied,claimDaysApplied,formDefaults,extras,fields,text:body};
       }
     }
     if(warnings.length){
@@ -2300,7 +2300,7 @@ async function couponCloseAll(goodsId,typeAliases,face,couponName){
   const pageRows=await couponCloseAllPages(couponName,typeAliases,face);
   const rows=pageRows.flatMap(x=>x.rows);
   if(JOB.expectedCount!=null&&rows.length!==JOB.expectedCount){
-    return {status:"needs_user_input",error:"coupon_close_count_mismatch",expected:JOB.expectedCount,actual:rows.length,rows,couponName};
+    return {status:"needs_user_input", needs:true,error:"coupon_close_count_mismatch",expected:JOB.expectedCount,actual:rows.length,rows,couponName};
   }
   if(JOB.confirmClose!==true){
     return {status:"preview",couponName,rows,count:rows.length,pages:pageRows.map(x=>({page:x.page,count:x.rows.length})),wouldClose:true,note:"confirmClose!=true: 未结束"};
@@ -2520,7 +2520,7 @@ async function main() {
   throw new Error("mode_unsupported:" + mode);
 }
 let result;
-try { result=await main(); await writeResult({ok:true,...result}); }
+try { result=await main(); if(result&&result.status==="needs_user_input") result={...result, status: "needs"}; await writeResult({ok:true,...result}); }
 catch(e){ const msg=String(e.message||e); log("ERROR",msg); result={status:"failed",error:msg}; await writeResult({ok:false,...result}); }
 finally { try{ if(task) { const mode=String(JOB.mode||""); const keepByDefault=["activity-list","store-activity-list","coupon-types","coupon-audit","coupon-list","platform-preview","platform-search","platform-scan","platform-enroll","platform-record","platform-status","platform-inventory"].includes(mode); const keep=JOB.keepOpen===true||(JOB.keepOpen!==false&&keepByDefault); if(keep) await task.handOff(); else await task.finish({keep:[]}); } }catch(e){} }
 console.log("WORKER_RESULT="+JSON.stringify({shop:JOB.shop,status:result&&result.status,error:result&&result.error}));
