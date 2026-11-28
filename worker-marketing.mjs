@@ -1131,12 +1131,19 @@ async function statusLookup(inputIds) {
     await page.keyboard.press("Control+A").catch(()=>{});
     await page.keyboard.type(id); await page.keyboard.press("Enter"); await page.waitForTimeout(2500);
     const res=await page.evaluate((id)=>{
-      const txt=document.body.innerText||"";
-      const active=/商品已生效当前活动|无需重复报名/.test(txt);
-      const found=txt.includes(id);
-      const reasons=txt.split(/\n+/).map((x)=>x.trim()).filter((x)=>/不符合报名条件|暂不符合|不可报名|原因|未满|不满足/.test(x)).slice(0,5);
-      const ineligible=(/不可报名商品/.test(txt)&&txt.includes(id))||reasons.length>0;
-      return {found,active,ineligible,reasons,text:txt.slice(-800)};
+      const t=(x)=>(x?String(x.innerText||x.textContent||"").replace(/\s+/g," ").trim():"");
+      const vis=(x)=>{const r=x.getBoundingClientRect();return r.width>0&&r.height>0;};
+      const body=document.body.innerText||"";
+      const candidates=[...document.querySelectorAll("tr,li,div,section")].filter((x)=>vis(x)&&t(x).includes(id));
+      candidates.sort((a,b)=>t(a).length-t(b).length);
+      const row=candidates.find((x)=>/可报名|不可报名|审核|报名|不符合|未满|运费模板/.test(t(x)))||candidates[0]||null;
+      const rowText=row?t(row):"";
+      const active=/商品已生效当前活动|无需重复报名/.test(rowText)||(!rowText&&/商品已生效当前活动|无需重复报名/.test(body));
+      const found=!!row;
+      const reasons=rowText.split(/\n+/).map((x)=>x.trim()).filter((x)=>/不符合报名条件|暂不符合|新建规格|未满1天/.test(x)).slice(0,5);
+      const warnings=rowText.split(/\n+/).map((x)=>x.trim()).filter((x)=>/运费模板.*不满足|不满足活动要求|运费模板/.test(x)).slice(0,5);
+      const ineligible=reasons.length>0;
+      return {found,active,ineligible,reasons,warnings,rowText:rowText.slice(-500),text:body.slice(-400)};
     },id);
     const eligible=res.active||(res.found&&!res.ineligible);
     const status=res.active?"已生效当前活动":res.ineligible?"不可报名":res.found?"可报名":"未找到";
