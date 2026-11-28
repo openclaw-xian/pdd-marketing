@@ -590,3 +590,14 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - `ineligible=true` 或 `reasons[]` 非空：不可报名，原因以 `reasons[]` 为准
 - `found=false`：未找到
 - 主表定位不到但有明确原因：判不可报名，不给报
+
+## 前置
+
+- Windows + ego-browser + Node.js
+- 店铺 profile 已登录
+- 首次使用配置 `ledgerRoot`
+
+## 补充口径
+
+- `warnings[]` 只在页面显示运费模板等提示时返回，可能为空，不参与阻断。
+- `activityType` 优先从活动卡片「去报名」URL 取；多数活动 `activityType = activityId`，可先试，失败再取 URL。

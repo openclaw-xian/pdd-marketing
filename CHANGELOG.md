@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.64 — 2026-11-28
+
+- 补前置、warnings 可为空、activityType 回退口径；简化不可报名结论行。
+
 ## 0.9.63 — 2026-11-28
 
 - F1：marketing 增加 exit 4 表示 needs，与其他 skill 的 3/4/5 约定一致。
