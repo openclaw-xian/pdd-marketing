@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.57 — 2026-11-28
+
+- 按评审修正：`platform-status` 增加 `eligible`/`reasons`，不可报名时 status=`不可报名`，不再误报 `可报名`。
+- `requireActivityPreflight` 增加 `dismissBlockingModals()` 防御。
+- `run.mjs` mode_invalid 文案改为未知 mode + 文档指引。
+- 文档补 `activityType` 来源、`state_unknown`/`operation_pending`/商品锁、只读 verify 例外、`choose_goods` 人工兜底、coupon-close 匹配规则、店铺活动折扣单位为折。
+
 ## 0.9.56 — 2026-11-27
 
 - 脱敏：示例中的真实店铺名改为 `<店铺>`，示例路径改为占位。

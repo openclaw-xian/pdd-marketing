@@ -335,7 +335,7 @@
 
 ### coupon-close
 
-- 必填 `goodsIds`（或 `goodsId`）
+- 需要 `goodsIds`/`goodsId`，或 `couponName` 精确匹配；两者至少一个
 - 建议同时给 `couponType` + `faceAmount` 精确匹配；同一商品多张券时不会盲关第一张
 - 匹配到多张返回 `coupon_close_ambiguous`
 - 读取前自动关闭「新消息」弹窗；否则点击会落到弹窗，弹「请选择反馈内容」

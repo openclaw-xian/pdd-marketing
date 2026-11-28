@@ -157,6 +157,8 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 活动名称不是判断依据，页面结构才是。
 
+> `choose_goods` 卡片流程是人工兜底，不在 `run.mjs` 模式内；自动化统一走 `platform-*`。
+
 卡片选品页不是普通商品表格，不能直接打开确认页。
 
 ### 进入选品页
@@ -583,19 +585,19 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 
 ## 操作账本
 
-- 只记录实际操作（报名/取消/创建/结束等），预览/只读不记。
-- 每个 skill 执行结束后，按商品写一条 `operations.jsonl`，并更新 `products/<商品ID>.md`。
-- 默认账本：`%USERPROFILE%/店铺运营日志`，可用 `ledgerRoot` 覆盖。
+- 只记录实际操作（报名/取消/创建/结束等），预览/只读不写操作账；`platform-status` 的状态核实会更新商品主档并留 `verify` 事件，这是只读例外。
+- 每个 skill 执行结束后，按商品写 `商品/<店铺>/<商品ID>/操作记录.jsonl`，并更新 `商品历史.md`。
+- 账本目录必须由用户指定 `ledgerRoot`（或共享配置/`PDD_LEDGER_ROOT`），不默认 C 盘。
 - `platform-enroll` 提交前按 店铺 + goodsId + activityId 查最近记录；已成功报过则返回 `duplicate_operation`，需 `allowRepeat:true` 才允许重复。
 - 取消成功后追加 `platform-cancel` 记录。
 
 ## 新会话 / 任何 agent 必读
 
 1. 读 `references/operation-ledger.md`。
-2. 确定 `ledgerRoot`（配置 > `PDD_LEDGER_ROOT` > `%USERPROFILE%/店铺运营日志`）。
+2. 确定 `ledgerRoot`（配置 > `PDD_LEDGER_ROOT` > 共享配置）；未配置返回 `ledger_root_required`。
 3. 操作前查目标商品历史：`node record-query.mjs --root <店铺运营日志> --skill pdd-marketing --shop <店铺> --goods <商品ID>`。
 4. 同店铺 + 同商品 + 同动作 + 同活动/券已成功做过，先告诉用户；`allowRepeat:true` 才允许重复。
-5. 操作完成后必须落账：`<ledgerRoot>/<中文分类>/<店铺>/<YYYY-MM>/操作记录.jsonl` + `products/<商品ID>.md`。
+5. 操作完成后必须落账：`商品/<店铺>/<商品ID>/操作记录.jsonl` + `商品历史.md`。
 6. 新会话没有记忆，账本是唯一事实来源；不要凭聊天上下文判断“没做过”。
 
 ## 商品主档与状态门
@@ -611,6 +613,9 @@ description: 拼多多多店铺「营销活动 + 优惠券」：优惠券只做�
 - 已下架 → 阻止报名/编辑/建券
 - 已报同活动 → 阻止重复报名
 - 有进行中活动 → 下架警告
+- 状态未知 → `state_unknown`（`allowUnknown:true` 才放行）
+- 有未完成 intent → `operation_pending`
+- 商品级 `.lock` 拿不到 → `product_locked`
 
 操作前写 `intent`，操作后写 `result`；超时记 `unknown`，必须回读平台。
 

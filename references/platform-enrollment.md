@@ -7,7 +7,7 @@
 报名页参数：
 
 - `activityId`：活动 ID
-- `activityType`：活动类型
+- `activityType`：活动类型；来源是活动卡片「去报名」链接的 `activityType` 参数。`activity-list` 不返回该字段，需从卡片 URL 读取，不要用 activityId 猜。
 - 常见入口由活动卡片点击打开；不要直接猜 `/act/enroll`。
 
 页面主要区域：

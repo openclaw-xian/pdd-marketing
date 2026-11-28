@@ -48,7 +48,7 @@
 - 选中商品后行内：
   - 活动库存：`1~库存`
   - 促销维度：商品级（默认）
-  - 折扣：`请输入折扣` 或范围 placeholder（如 `1～5.1`）
+  - 折扣：`请输入折扣` 或范围 placeholder（如 `1～5.1`，单位：折）
   - 活动价：推荐值，如 5 折时 13.95～45.00
   - 按钮：批量设置 / 确认设置
 - 没传 `discount`：返回 `needs_user_input` + `store_activity_discount_required`，`message` 和 `items[]` 带商品名/ID、推荐折扣、允许范围、活动价，不创建
