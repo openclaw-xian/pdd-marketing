@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.60 — 2026-11-28
+
+- A5 真修：`requireActivityPreflight` 精确补上 `dismissBlockingModals()`。
+- 0.9.59 的 A2 已生效；0.9.60 补齐 A5。
+
 ## 0.9.59 — 2026-11-28
 
 - A2 真修：`statusLookup` 增加 `eligible`/`reasons`，`ineligible` 时 status=`不可报名`。

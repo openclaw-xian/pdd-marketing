@@ -1389,6 +1389,7 @@ async function dismissBlockingModals() {
   return info;
 }
 async function requireActivityPreflight() {
+  await dismissBlockingModals();
   await dismissSearchModal();
   await loadAllProducts();
   const left = await clearSelectedProducts();
